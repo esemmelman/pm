@@ -1,4 +1,7 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
+const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
+const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
+let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
 const STATUS = ["To do", "In progress", "Review", "Done"];
 const state = { projects: [], activeProjectId: null, view: "gantt", zoom: 1, color: "#dbe88f", pendingDelete: null, collapsedProjects: new Set(), homeCollapsedProjects: new Set() };
 const $ = id => document.getElementById(id);
@@ -18,7 +21,12 @@ function load() {
   state.collapsedProjects = new Set(state.projects.map(p => p.id));
   state.homeCollapsedProjects.clear();
 }
-function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects: state.projects, activeProjectId: state.activeProjectId })); }
+function workspacePayload() { return { projects: state.projects, activeProjectId: state.activeProjectId }; }
+function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify(workspacePayload())); scheduleRemoteSync(); }
+function setSyncStatus(message) { const el = $("syncStatus"); if (el) el.textContent = message; const note = document.querySelector(".storage-note"); if (note) { note.textContent = message; note.classList.toggle("synced", message === "Synced with Supabase"); } }
+function scheduleRemoteSync() { if (!currentUser || !remoteReady) return; setSyncStatus("Saving…"); clearTimeout(syncTimer); syncTimer = setTimeout(syncRemote, 350); }
+async function syncRemote() { if (!currentUser || !remoteReady) return; const { error } = await supabaseClient.rpc("northstar_replace_workspace", { payload: workspacePayload(), backup_time: null }); setSyncStatus(error ? "Sync failed" : "Synced with Supabase"); if (error) console.error(error); }
+function downloadBackup() { const backup = { format: "northstar-backup-v1", exportedAt: new Date().toISOString(), storageKey: STORAGE_KEY, data: workspacePayload() }; const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `northstar-backup-${new Date().toISOString().replaceAll(":", "-")}.json`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); return backup.exportedAt; }
 function uid() { return `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
 function initials(name) { return (name || "?").split(/\s+/).slice(0, 2).map(word => word[0]).join("").toUpperCase(); }
 function statusClass(value) { return value.toLowerCase().replaceAll(" ", "-"); }
@@ -139,8 +147,40 @@ function showCellTooltip(cell) {
 function hideCellTooltip() { $("cellTooltip").hidden = true; }
 function askDelete(type, item) { state.pendingDelete = { type, item }; $("confirmTitle").textContent = `Delete ${type}?`; $("confirmText").textContent = type === "project" ? `“${item.name}” and all of its tasks will be permanently deleted.` : `“${item.name}” will be permanently deleted.`; $("confirm").hidden = false; }
 
+async function loadRemoteWorkspace() {
+  setSyncStatus("Loading from Supabase…");
+  const [projectsResult, tasksResult] = await Promise.all([
+    supabaseClient.from("northstar_projects").select("*").order("sort_order"),
+    supabaseClient.from("northstar_tasks").select("*").order("sort_order")
+  ]);
+  const error = projectsResult.error || tasksResult.error;
+  if (error) { setSyncStatus("Supabase setup needed"); console.error(error); toast("Run supabase-schema.sql first"); return; }
+  if (projectsResult.data.length) {
+    state.projects = projectsResult.data.map(p => ({ id:p.id, name:p.name, description:p.description, color:p.color, start:p.start_date || "", end:p.end_date || "", tasks:tasksResult.data.filter(t => t.project_id === p.id).map(t => ({ id:t.id, name:t.name, status:t.status, owner:t.owner, start:t.start_date, end:t.end_date, notes:t.notes })) }));
+    state.activeProjectId = null; localStorage.setItem(STORAGE_KEY, JSON.stringify(workspacePayload())); remoteReady = true; setSyncStatus("Synced with Supabase"); render();
+  } else if (state.projects.length) {
+    setSyncStatus("Local data awaiting backup"); $("migrationModal").hidden = false;
+  } else { remoteReady = true; setSyncStatus("Synced with Supabase"); }
+}
+async function applySession(session) {
+  currentUser = session?.user || null; remoteReady = false;
+  $("connectButton").hidden = !!currentUser; $("signOutButton").hidden = !currentUser;
+  if (currentUser) await loadRemoteWorkspace(); else setSyncStatus("Saved on this device");
+}
+function setupSupabase() {
+  $("connectButton").onclick = () => { $("authMessage").textContent = supabaseClient ? "" : "Supabase could not be loaded."; $("authModal").hidden = false; $("authEmail").focus(); };
+  document.querySelectorAll("[data-auth-close]").forEach(b => b.onclick = () => $("authModal").hidden = true);
+  $("authModeButton").onclick = () => { authMode = authMode === "signin" ? "signup" : "signin"; $("authSubmit").textContent = authMode === "signin" ? "Sign in" : "Create account"; $("authModeButton").textContent = authMode === "signin" ? "Create account" : "Use existing account"; };
+  $("authForm").onsubmit = async event => { event.preventDefault(); if (!supabaseClient) return; $("authMessage").textContent = "Connecting…"; const credentials = { email:$("authEmail").value.trim(), password:$("authPassword").value }; const result = authMode === "signup" ? await supabaseClient.auth.signUp(credentials) : await supabaseClient.auth.signInWithPassword(credentials); if (result.error) $("authMessage").textContent = result.error.message; else { $("authModal").hidden = true; $("authMessage").textContent = ""; if (authMode === "signup" && !result.data.session) toast("Check your email to confirm your account"); } };
+  $("signOutButton").onclick = () => supabaseClient?.auth.signOut();
+  $("migrationLater").onclick = () => $("migrationModal").hidden = true;
+  $("migrationStart").onclick = async () => { const button = $("migrationStart"); button.disabled = true; const backupTime = downloadBackup(); setSyncStatus("Uploading backup…"); const { error } = await supabaseClient.rpc("northstar_replace_workspace", { payload:workspacePayload(), backup_time:backupTime }); button.disabled = false; if (error) { setSyncStatus("Migration failed; local data kept"); toast(error.message); return; } remoteReady = true; $("migrationModal").hidden = true; setSyncStatus("Synced with Supabase"); toast("Backup downloaded and data migrated"); };
+  if (supabaseClient) { supabaseClient.auth.onAuthStateChange((_event, session) => setTimeout(() => applySession(session), 0)); supabaseClient.auth.getSession().then(({data}) => applySession(data.session)); }
+}
+
 function setup() {
   load();
+  setupSupabase();
   $("sideAddProject").onclick = () => openProject();
   $("ganttHomeButton").onclick = () => { state.activeProjectId = null; if (state.homeCollapsedProjects.size) state.homeCollapsedProjects.clear(); else state.homeCollapsedProjects = new Set(state.projects.map(p => p.id)); $("searchInput").value = ""; persist(); render(); $("sidebar").classList.remove("open"); };
   $("projectAddTask").onclick = () => openTask();

@@ -65,3 +65,4 @@
 .legend .done{background:#213f68}
 .home-grid .home-project-row{background:#f5e8ad}
 .home-grid .home-project-row:hover{background:#f5e8ad}
+.account-controls{margin-left:auto;display:flex;align-items:center;gap:9px}.account-controls span{color:var(--muted);font-size:11px}.form-message{min-height:18px;color:#a84e43;font-size:12px}.storage-note.synced{color:#b8d8c8}@media(max-width:620px){.account-controls span{display:none}.account-controls .secondary{padding:0 9px}}

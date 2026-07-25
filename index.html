@@ -24,6 +24,7 @@
       <header class="topbar">
         <button class="icon-button mobile-menu" id="menuButton" aria-label="Open menu">☰</button>
         <label class="search">⌕<input id="searchInput" type="search" placeholder="Search tasks…" disabled><kbd>⌘ K</kbd></label>
+        <div class="account-controls"><span id="syncStatus">Saved on this device</span><button class="secondary" id="connectButton">Connect</button><button class="secondary" id="signOutButton" hidden>Sign out</button></div>
       </header>
 
       <div class="content">
@@ -75,6 +76,10 @@
   <div class="confirm" id="confirm" hidden><div><h3 id="confirmTitle">Delete project?</h3><p id="confirmText"></p><footer><button class="secondary" id="confirmCancel">Cancel</button><button class="danger-solid" id="confirmDelete">Delete</button></footer></div></div>
   <div class="toast" id="toast"></div>
   <div class="cell-tooltip" id="cellTooltip" role="tooltip" hidden></div>
+  <div class="backdrop" id="authModal" hidden><form class="modal" id="authForm"><header><div><span class="eyebrow">SUPABASE ACCOUNT</span><h2>Connect Northstar</h2></div><button type="button" data-auth-close>×</button></header><label>Email<input id="authEmail" type="email" autocomplete="email" required></label><label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="6" required></label><p id="authMessage" class="form-message"></p><footer><button type="button" class="secondary" data-auth-close>Cancel</button><span></span><button type="button" class="secondary" id="authModeButton">Create account</button><button class="primary" id="authSubmit" type="submit">Sign in</button></footer></form></div>
+  <div class="confirm" id="migrationModal" hidden><div><h3>Back up and migrate?</h3><p>Your existing projects are stored only in this browser. Northstar will first download a dated JSON backup, then copy the data to Supabase. Keep the downloaded file somewhere safe.</p><footer><button class="secondary" id="migrationLater">Not now</button><button class="primary" id="migrationStart">Back up &amp; migrate</button></footer></div></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
