@@ -1,4 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
+const APP_VERSION = "1.2.0";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -23,7 +24,7 @@ function load() {
 }
 function workspacePayload() { return { projects: state.projects, activeProjectId: state.activeProjectId }; }
 function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify(workspacePayload())); scheduleRemoteSync(); }
-function setSyncStatus(message) { const el = $("syncStatus"); if (el) el.textContent = message; const note = document.querySelector(".storage-note"); if (note) { note.textContent = message; note.classList.toggle("synced", message === "Synced with Supabase"); } }
+function setSyncStatus(message) { const el = $("syncStatus"); if (el) el.textContent = message; const note = document.querySelector(".storage-note"), status = note?.querySelector(".storage-status"); if (status) status.textContent = message; if (note) note.classList.toggle("synced", message === "Synced with Supabase"); }
 function scheduleRemoteSync() { if (!currentUser || !remoteReady) return; setSyncStatus("Saving…"); clearTimeout(syncTimer); syncTimer = setTimeout(syncRemote, 350); }
 async function syncRemote() { if (!currentUser || !remoteReady) return; const { error } = await supabaseClient.rpc("northstar_replace_workspace", { payload: workspacePayload(), backup_time: null }); setSyncStatus(error ? "Sync failed" : "Synced with Supabase"); if (error) console.error(error); }
 function downloadBackup() { const backup = { format: "northstar-backup-v1", exportedAt: new Date().toISOString(), storageKey: STORAGE_KEY, data: workspacePayload() }; const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `northstar-backup-${new Date().toISOString().replaceAll(":", "-")}.json`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); return backup.exportedAt; }
@@ -227,6 +228,7 @@ function setupSupabase() {
 
 function setup() {
   load();
+  document.querySelectorAll(".app-version").forEach(element => element.textContent = `v${APP_VERSION}`);
   setupSupabase();
   $("sideAddProject").onclick = () => openProject();
   $("ganttHomeButton").onclick = () => { state.activeProjectId = null; if (state.homeCollapsedProjects.size) state.homeCollapsedProjects.clear(); else state.homeCollapsedProjects = new Set(state.projects.map(p => p.id)); $("searchInput").value = ""; persist(); render(); $("sidebar").classList.remove("open"); };
