@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.3.1";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -54,6 +54,16 @@ function renderSidebar() {
   $("projectList").innerHTML = sortedProjects.map(p => { const collapsed = state.collapsedProjects.has(p.id); const sortedTasks = [...p.tasks].sort(compareTaskSchedule), nextTask = sortedTasks.find(task => task.start && dayDiff(todayIso(), task.start) > 0), daysUntilFirst = nextTask ? dayDiff(todayIso(), nextTask.start) : ""; return `<div class="project-tree"><div class="project-tree-head"><button class="tree-toggle ${collapsed ? "collapsed" : ""}" data-toggle-project="${p.id}" aria-label="${collapsed ? "Expand" : "Collapse"} ${esc(p.name)}" aria-expanded="${!collapsed}">⌄</button><button class="project-item ${p.id === state.activeProjectId ? "active" : ""}" data-project="${p.id}"><i style="background:${p.color}"></i><span>${esc(p.name)}</span></button><span class="project-days" title="Days until first task">${daysUntilFirst}</span><button class="side-add-task" data-add-task="${p.id}" aria-label="Add task to ${esc(p.name)}" title="Add task">＋</button></div><div class="side-tasks" ${collapsed ? "hidden" : ""}>${sortedTasks.map(task => `<button class="side-task" data-side-task="${task.id}" data-parent-project="${p.id}"><span class="task-status-dot ${statusClass(task.status)}"></span><span>${esc(task.name)}</span></button>`).join("")}</div></div>`; }).join("");
   document.querySelectorAll("[data-project]").forEach(button => button.onclick = () => { $("searchInput").value = ""; $("statusFilter").value = "all"; openProjectView(button.dataset.project); });
   document.querySelectorAll("[data-side-task]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId = button.dataset.parentProject; persist(); render(); openTask(button.dataset.sideTask); });
+  document.querySelectorAll("[data-side-task]").forEach(button => {
+    button.draggable = true;
+    button.ondragstart = event => {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("application/x-northstar-task", JSON.stringify({ projectId:button.dataset.parentProject, taskId:button.dataset.sideTask }));
+      event.dataTransfer.setData("text/plain", button.dataset.sideTask);
+      button.classList.add("dragging");
+    };
+    button.ondragend = () => { button.classList.remove("dragging"); document.querySelectorAll(".task-drop-target").forEach(cell => cell.classList.remove("task-drop-target")); };
+  });
   document.querySelectorAll("[data-add-task]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId = button.dataset.addTask; persist(); render(); openTask(); });
   document.querySelectorAll("[data-toggle-project]").forEach(button => button.onclick = event => { event.stopPropagation(); const id = button.dataset.toggleProject; state.collapsedProjects.has(id) ? state.collapsedProjects.delete(id) : state.collapsedProjects.add(id); renderSidebar(); });
 }
@@ -73,7 +83,7 @@ function renderHomeGantt() {
     const clear = document.querySelector(".home-clear-action"); if (clear) clear.onclick = clearHomeFilters; else document.querySelector(".home-empty-action").onclick = () => state.projects.length ? openProjectView(state.projects[0].id) : openProject(); return;
   }
   const timelineTasks=tasks.filter(task=>task.start&&task.end),projectDates=state.projects.flatMap(p=>[p.start,p.end]).filter(Boolean);
-  if(!timelineTasks.length&&!projectDates.length){$("homeGantt").innerHTML=`<div class="empty-panel"><h3>Tasks awaiting dates</h3><p>Undated tasks are available in Agenda and the project list. Add dates when you are ready to schedule them.</p></div>`;return;}
+  if(!timelineTasks.length&&!projectDates.length)projectDates.push(today,addDays(today,30));
   const first=[...timelineTasks.map(t=>t.start),...projectDates,today].sort()[0],last=[...timelineTasks.map(t=>t.end),...projectDates,today].sort().at(-1),start=parseDate(addDays(first,-3)),end=parseDate(addDays(last,10)),days=dayDiff(toIso(start),toIso(end))+1,width=Math.round(25*state.zoom);
   let html=`<div class="gantt-grid home-grid" data-chart-start="${toIso(start)}" style="--days:${days};--day-width:${width}px"><div class="gantt-corner" style="grid-column:1;grid-row:1 / span 2">PROJECT / TASK</div>`;
   let cursor=new Date(start);while(cursor<=end){const month=cursor.getMonth(),year=cursor.getFullYear(),offset=dayDiff(toIso(start),toIso(cursor));let span=0;while(cursor<=end&&cursor.getMonth()===month){span++;cursor.setDate(cursor.getDate()+1)}html+=`<div class="month" style="grid-column:${offset+2} / span ${span};grid-row:1">${new Intl.DateTimeFormat("en-US",{month:"long",year:"numeric"}).format(new Date(year,month,1))}</div>`}
@@ -109,19 +119,19 @@ function setMobileView(section, view) {
 }
 function emptyPanel(title, copy) { return `<div class="empty-panel"><div>⌁</div><h3>${title}</h3><p>${copy}</p><button class="primary empty-add">＋ Add first task</button></div>`; }
 function renderGantt() {
-  const matchedTasks = taskItems(), tasks = matchedTasks.filter(task=>task.start&&task.end).sort(compareTaskSchedule);
+  const tasks = taskItems().sort(compareTaskSchedule), scheduledTasks=tasks.filter(task=>task.start&&task.end);
   if (!project().tasks.length) { $("gantt").innerHTML = emptyPanel("Your timeline is ready", "Add a task with start and end dates to build your Gantt chart."); wireEmptyButtons(); return; }
-  if (!tasks.length) { $("gantt").innerHTML = `<div class="empty-panel"><h3>${matchedTasks.length ? 'Tasks awaiting dates' : 'No matching tasks'}</h3><p>${matchedTasks.length ? 'Assign start and end dates when you are ready to place these tasks on the timeline.' : 'Try changing your search or filter.'}</p></div>`; return; }
-  const allTasks = project().tasks.filter(task=>task.start&&task.end), minTask = allTasks.map(t => t.start).sort()[0], maxTask = allTasks.map(t => t.end).sort().at(-1);
-  const today = todayIso(), firstDate = [minTask, today].sort()[0], lastDate = [maxTask, today].sort().at(-1), start = parseDate(addDays(firstDate, -3)), end = parseDate(addDays(lastDate, 10)), days = dayDiff(toIso(start), toIso(end)) + 1, width = Math.round(25 * state.zoom);
+  if (!tasks.length) { $("gantt").innerHTML = `<div class="empty-panel"><h3>No matching tasks</h3><p>Try changing your search or filter.</p></div>`; return; }
+  const today = todayIso(), minTask = scheduledTasks.map(t => t.start).sort()[0]||today, maxTask = scheduledTasks.map(t => t.end).sort().at(-1)||addDays(today,30);
+  const firstDate = [minTask, today].sort()[0], lastDate = [maxTask, today].sort().at(-1), start = parseDate(addDays(firstDate, -3)), end = parseDate(addDays(lastDate, 10)), days = dayDiff(toIso(start), toIso(end)) + 1, width = Math.round(25 * state.zoom);
   let html = `<div class="gantt-grid" data-chart-start="${toIso(start)}" style="--days:${days};--day-width:${width}px"><div class="gantt-corner" style="grid-column:1;grid-row:1 / span 2">TASK / OWNER</div>`;
   let cursor = new Date(start);
   while (cursor <= end) { const month = cursor.getMonth(), year = cursor.getFullYear(), offset = dayDiff(toIso(start), toIso(cursor)); let span = 0; while (cursor <= end && cursor.getMonth() === month) { span++; cursor.setDate(cursor.getDate() + 1); } html += `<div class="month" style="grid-column:${offset + 2} / span ${span};grid-row:1">${new Intl.DateTimeFormat("en-US", {month:"long", year:"numeric"}).format(new Date(year, month, 1))}</div>`; }
   for (let i = 0; i < days; i++) { const d = new Date(start); d.setDate(d.getDate() + i); html += `<div class="day ${[0,6].includes(d.getDay()) ? "weekend" : ""} ${toIso(d) === today ? "today" : ""}" style="grid-column:${i + 2};grid-row:2">${d.getDate()}<small>${toIso(d) === today ? "TODAY" : ["S","M","T","W","T","F","S"][d.getDay()]}</small></div>`; }
-  tasks.forEach((task, index) => { const row = index + 3, offset = dayDiff(toIso(start), task.start), duration = dayDiff(task.start, task.end) + 1;
+  tasks.forEach((task, index) => { const row = index + 3;
     html += `<button class="task-label" data-task="${task.id}" style="grid-column:1;grid-row:${row}"><span><b>${esc(task.name)}</b></span></button>`;
     for (let i=0;i<days;i++) { const d=new Date(start); d.setDate(d.getDate()+i); html += `<div class="gantt-cell ${[0,6].includes(d.getDay()) ? "weekend" : ""}" style="grid-column:${i+2};grid-row:${row}"></div>`; }
-    html += `<button class="bar ${statusClass(task.status)}" data-bar="${task.id}" style="grid-column:${offset+2} / span ${duration};grid-row:${row}">${esc(task.name)}</button>`;
+    if(task.start&&task.end){const offset=dayDiff(toIso(start),task.start),duration=dayDiff(task.start,task.end)+1;html += `<button class="bar ${statusClass(task.status)}" data-bar="${task.id}" style="grid-column:${offset+2} / span ${duration};grid-row:${row}">${esc(task.name)}</button>`;}
   });
   $("gantt").innerHTML = html + `</div>`; wireTaskButtons(); wireDrag(width); markTruncatedBars(); scrollTimelineToToday($("gantt"));
 }
@@ -256,6 +266,27 @@ function setup() {
   $("menuButton").onclick=()=>$("sidebar").classList.toggle("open");
   document.querySelectorAll(".mobile-view-switch").forEach(switcher => switcher.onclick = event => { const button = event.target.closest("[data-mobile-view]"); if (button) setMobileView(switcher.closest("section"), button.dataset.mobileView); });
   document.addEventListener("click", event => { const cell = event.target.closest(".gantt-cell"); if (cell) createTaskFromCell(cell); });
+  document.addEventListener("dragover", event => {
+    const cell = event.target.closest(".gantt-cell");
+    if (!cell || !event.dataTransfer.types.includes("application/x-northstar-task")) return;
+    event.preventDefault();event.dataTransfer.dropEffect="move";
+    document.querySelectorAll(".task-drop-target").forEach(target => { if(target!==cell)target.classList.remove("task-drop-target"); });
+    cell.classList.add("task-drop-target");
+  });
+  document.addEventListener("drop", event => {
+    const cell = event.target.closest(".gantt-cell");
+    if (!cell) return;
+    const raw = event.dataTransfer.getData("application/x-northstar-task");
+    if (!raw) return;
+    event.preventDefault();
+    let payload;try{payload=JSON.parse(raw);}catch{return;}
+    const parent=state.projects.find(project=>project.id===payload.projectId),task=parent?.tasks.find(item=>item.id===payload.taskId),grid=cell.closest(".gantt-grid");
+    const column=parseInt(cell.style.gridColumn,10);
+    if(!task||!grid?.dataset.chartStart||!Number.isFinite(column))return;
+    const droppedDate=addDays(grid.dataset.chartStart,column-2),duration=task.start&&task.end?dayDiff(task.start,task.end)+1:1;
+    task.start=droppedDate;task.end=addDays(droppedDate,duration-1);
+    persist();render();toast(`${task.name} scheduled for ${formatDate(droppedDate)}`);
+  });
   document.addEventListener("mouseover", event => { const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))showCellTooltip(cell); });
   document.addEventListener("mouseout", event => { const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))hideCellTooltip(); });
   document.onkeydown=event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();$("searchInput").focus();}if(event.key==="Escape"){closeModals();$("confirm").hidden=true;}};

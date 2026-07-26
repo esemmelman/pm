@@ -84,3 +84,5 @@
 .gantt-grid .bar.dragging{z-index:24;opacity:.88;cursor:grabbing;box-shadow:0 5px 14px rgba(20,45,32,.32)}.mobile-drag-date{position:fixed;left:50%;bottom:24px;z-index:100;transform:translate(-50%,12px);opacity:0;pointer-events:none;border-radius:20px;background:#173b2e;color:#fff;padding:9px 14px;box-shadow:0 8px 24px rgba(20,36,28,.28);font:700 12px Manrope;transition:opacity .12s,transform .12s}.mobile-drag-date.show{opacity:1;transform:translate(-50%,0)}
 .legend{padding:9px 10px;gap:10px;overflow-x:auto;white-space:nowrap}.cell-tooltip{display:none!important}.filters{flex-wrap:wrap;margin-bottom:10px}
 }
+.side-task[draggable="true"]{cursor:grab}.side-task.dragging{opacity:.5}
+.gantt-cell.task-drop-target{background:#ccebdc!important;outline:3px solid #176b5b;outline-offset:-3px}
