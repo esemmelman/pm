@@ -43,6 +43,7 @@ function render() {
   if (!p) { renderHomeGantt(); return; }
   $("projectName").textContent = p.name;
   renderGantt();
+  renderProjectAgenda();
   $("filterDot").hidden = $("statusFilter").value === "all" && !$("searchInput").value;
 }
 function renderSidebar() {
@@ -61,6 +62,7 @@ function clearHomeFilters() { $("homeStatusFilter").value = "all"; $("homeDateFi
 function renderHomeGantt() {
   const all = allTasks(), statusFilter = $("homeStatusFilter").value, dateFilter = $("homeDateFilter").value, query = $("searchInput").value.trim().toLowerCase(), today = todayIso(), tomorrow = addDays(today, 1);
   const tasks = all.filter(task => { const statusMatch = statusFilter === "all" || task.status === statusFilter; const dateMatch = dateFilter === "all" || (dateFilter === "today" ? task.start <= today && task.end >= today : task.start <= tomorrow && task.end >= today); const searchMatch = !query || `${task.name} ${task.owner} ${task.notes} ${task.projectName}`.toLowerCase().includes(query); return statusMatch && dateMatch && searchMatch; });
+  renderAgenda($("homeAgenda"), tasks, true);
   const filtered = statusFilter !== "all" || dateFilter !== "all" || !!query; $("homeFilterDot").hidden = statusFilter === "all" && dateFilter === "all";
   const matchingProjects = new Set(tasks.map(task => task.projectId)).size;
   $("homeSummary").textContent = state.projects.length ? `${matchingProjects} project${matchingProjects === 1 ? "" : "s"} · ${tasks.length} ${filtered ? "matching " : ""}task${tasks.length === 1 ? "" : "s"}` : "No projects yet";
@@ -75,7 +77,28 @@ function renderHomeGantt() {
   let row=3;[...state.projects].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"})).forEach(p=>{const projectTasks=tasks.filter(t=>t.projectId===p.id).sort((a,b)=>a.start.localeCompare(b.start)||a.name.localeCompare(b.name));if(filtered&&!projectTasks.length)return;const collapsed=state.homeCollapsedProjects.has(p.id);html+=`<button class="task-label home-project-row" data-home-project="${p.id}" style="grid-column:1;grid-row:${row}"><span class="home-chart-toggle ${collapsed?"collapsed":""}" data-home-toggle="${p.id}">⌄</span><i style="background:${p.color}"></i><span><b>${esc(p.name)}</b></span></button>`;for(let i=0;i<days;i++){const d=new Date(start);d.setDate(d.getDate()+i);html+=`<div class="gantt-cell project-band ${[0,6].includes(d.getDay())?"weekend":""}" data-project-cell="${p.id}" style="grid-column:${i+2};grid-row:${row}"></div>`}if(p.start&&p.end){const projectOffset=dayDiff(toIso(start),p.start),projectDuration=dayDiff(p.start,p.end)+1;html+=`<button class="bar project-bar" data-project-bar="${p.id}" style="--project-color:${p.color};grid-column:${projectOffset+2} / span ${projectDuration};grid-row:${row}">${esc(p.name)}</button>`}row++;if(!collapsed)projectTasks.forEach(task=>{const offset=dayDiff(toIso(start),task.start),duration=dayDiff(task.start,task.end)+1;html+=`<button class="task-label home-task-row" data-home-task="${task.id}" data-home-parent="${p.id}" style="grid-column:1;grid-row:${row}"><span><b>${esc(task.name)}</b></span></button>`;for(let i=0;i<days;i++){const d=new Date(start);d.setDate(d.getDate()+i);html+=`<div class="gantt-cell task-band ${[0,6].includes(d.getDay())?"weekend":""}" style="grid-column:${i+2};grid-row:${row}"></div>`}html+=`<button class="bar ${statusClass(task.status)}" data-home-bar="${task.id}" data-home-parent="${p.id}" style="grid-column:${offset+2} / span ${duration};grid-row:${row}">${esc(task.name)}</button>`;row++})});
   $("homeGantt").innerHTML=html+`</div>`;
   markTruncatedBars();
-  document.querySelectorAll("[data-home-project]").forEach(b=>b.onclick=e=>{const toggle=e.target.closest("[data-home-toggle]");if(toggle){const id=toggle.dataset.homeToggle;state.homeCollapsedProjects.has(id)?state.homeCollapsedProjects.delete(id):state.homeCollapsedProjects.add(id);renderHomeGantt();}else openProjectView(b.dataset.homeProject)});document.querySelectorAll("[data-home-task]").forEach(b=>b.onclick=()=>openTaskFromHome(b.dataset.homeParent,b.dataset.homeTask));wireHomeDrag(width);
+  document.querySelectorAll("[data-home-project]").forEach(b=>b.onclick=e=>{const toggle=e.target.closest("[data-home-toggle]");if(toggle){const id=toggle.dataset.homeToggle;state.homeCollapsedProjects.has(id)?state.homeCollapsedProjects.delete(id):state.homeCollapsedProjects.add(id);renderHomeGantt();}else openProjectView(b.dataset.homeProject)});document.querySelectorAll("[data-home-task]").forEach(b=>b.onclick=()=>openTaskFromHome(b.dataset.homeParent,b.dataset.homeTask));wireHomeDrag(width);scrollTimelineToToday($("homeGantt"));
+}
+function renderAgenda(container, tasks, includeProject) {
+  if (!container) return;
+  const sorted = [...tasks].sort((a,b) => a.start.localeCompare(b.start) || a.name.localeCompare(b.name));
+  if (!sorted.length) { container.innerHTML = `<div class="agenda-empty">No tasks to show.</div>`; return; }
+  const today = todayIso();
+  container.innerHTML = sorted.map(task => {
+    const active = task.start <= today && task.end >= today, projectId = task.projectId || state.activeProjectId;
+    return `<button class="agenda-item" data-agenda-task="${task.id}" data-agenda-project="${projectId}"><i class="${statusClass(task.status)}"></i><span class="agenda-copy">${includeProject ? `<small>${esc(task.projectName)}</small>` : ""}<b>${esc(task.name)}</b><span>${formatDate(task.start)}${task.end !== task.start ? ` – ${formatDate(task.end)}` : ""}</span></span><em class="${active ? "active" : ""}">${active ? "Today" : esc(task.status)}</em></button>`;
+  }).join("");
+  container.querySelectorAll("[data-agenda-task]").forEach(button => button.onclick = () => openTaskFromHome(button.dataset.agendaProject, button.dataset.agendaTask));
+}
+function renderProjectAgenda() { renderAgenda($("projectAgenda"), taskItems(), false); }
+function scrollTimelineToToday(wrap) {
+  if (!wrap || !matchMedia("(max-width:620px)").matches) return;
+  requestAnimationFrame(() => { const today = wrap.querySelector(".day.today"); if (today) wrap.scrollLeft = Math.max(0, today.offsetLeft - 190); });
+}
+function setMobileView(section, view) {
+  section.classList.toggle("show-mobile-timeline", view === "timeline");
+  section.querySelectorAll("[data-mobile-view]").forEach(button => { const active = button.dataset.mobileView === view; button.classList.toggle("active", active); button.setAttribute("aria-pressed", active); });
+  if (view === "timeline") scrollTimelineToToday(section.querySelector(".gantt-wrap"));
 }
 function emptyPanel(title, copy) { return `<div class="empty-panel"><div>⌁</div><h3>${title}</h3><p>${copy}</p><button class="primary empty-add">＋ Add first task</button></div>`; }
 function renderGantt() {
@@ -93,7 +116,7 @@ function renderGantt() {
     for (let i=0;i<days;i++) { const d=new Date(start); d.setDate(d.getDate()+i); html += `<div class="gantt-cell ${[0,6].includes(d.getDay()) ? "weekend" : ""}" style="grid-column:${i+2};grid-row:${row}"></div>`; }
     html += `<button class="bar ${statusClass(task.status)}" data-bar="${task.id}" style="grid-column:${offset+2} / span ${duration};grid-row:${row}">${esc(task.name)}</button>`;
   });
-  $("gantt").innerHTML = html + `</div>`; wireTaskButtons(); wireDrag(width); markTruncatedBars();
+  $("gantt").innerHTML = html + `</div>`; wireTaskButtons(); wireDrag(width); markTruncatedBars(); scrollTimelineToToday($("gantt"));
 }
 function wireEmptyButtons() { document.querySelectorAll(".empty-add").forEach(button => button.onclick = () => openTask()); }
 function wireTaskButtons() { document.querySelectorAll("[data-task]").forEach(button => button.onclick = () => openTask(button.dataset.task)); }
@@ -201,6 +224,7 @@ function setup() {
   $("homeZoomIn").onclick=()=>{state.zoom=Math.min(1.8,state.zoom+.2);$("homeZoomLabel").textContent=state.zoom>1.3?"Day":"Week";renderHomeGantt();};$("homeZoomOut").onclick=()=>{state.zoom=Math.max(.6,state.zoom-.2);$("homeZoomLabel").textContent=state.zoom<.8?"Month":"Week";renderHomeGantt();};
   $("homeFilterButton").onclick=()=>$("homeFilters").hidden=!$("homeFilters").hidden;$("homeStatusFilter").onchange=renderHomeGantt;$("homeDateFilter").onchange=renderHomeGantt;$("clearHomeFilter").onclick=clearHomeFilters;
   $("menuButton").onclick=()=>$("sidebar").classList.toggle("open");
+  document.querySelectorAll(".mobile-view-switch").forEach(switcher => switcher.onclick = event => { const button = event.target.closest("[data-mobile-view]"); if (button) setMobileView(switcher.closest("section"), button.dataset.mobileView); });
   document.addEventListener("click", event => { const cell = event.target.closest(".gantt-cell"); if (cell) createTaskFromCell(cell); });
   document.addEventListener("mouseover", event => { const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))showCellTooltip(cell); });
   document.addEventListener("mouseout", event => { const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))hideCellTooltip(); });
