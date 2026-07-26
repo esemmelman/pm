@@ -86,8 +86,8 @@ function renderAgenda(container, tasks, includeProject) {
   const sorted = [...visibleTasks].sort((a,b) => Math.max(Date.parse(a.start), Date.parse(today)) - Math.max(Date.parse(b.start), Date.parse(today)) || a.name.localeCompare(b.name));
   if (!sorted.length) { container.innerHTML = `<div class="agenda-empty">No tasks to show.</div>`; return; }
   container.innerHTML = sorted.map(task => {
-    const active = task.start <= today && task.end >= today, projectId = task.projectId || state.activeProjectId;
-    return `<button class="agenda-item" data-agenda-task="${task.id}" data-agenda-project="${projectId}"><i class="${statusClass(task.status)}"></i><span class="agenda-copy">${includeProject ? `<small>${esc(task.projectName)}</small>` : ""}<b>${esc(task.name)}</b><span>${formatDate(task.start)}${task.end !== task.start ? ` – ${formatDate(task.end)}` : ""}</span></span><em class="${active ? "active" : ""}">${active ? "Today" : esc(task.status)}</em></button>`;
+    const active = task.start <= today && task.end >= today, daysAway = Math.max(0, dayDiff(today, task.start)), projectId = task.projectId || state.activeProjectId;
+    return `<button class="agenda-item" data-agenda-task="${task.id}" data-agenda-project="${projectId}"><i class="${statusClass(task.status)}"></i><span class="agenda-copy">${includeProject ? `<small>${esc(task.projectName)}</small>` : ""}<b>${esc(task.name)}</b><span>${formatDate(task.start)}${task.end !== task.start ? ` – ${formatDate(task.end)}` : ""}</span></span><span class="agenda-meta"><em class="${active ? "active" : ""}">${active ? "Active" : esc(task.status)}</em><strong>${daysAway === 0 ? "Today" : `In ${daysAway} day${daysAway === 1 ? "" : "s"}`}</strong></span></button>`;
   }).join("");
   container.querySelectorAll("[data-agenda-task]").forEach(button => button.onclick = () => openTaskFromHome(button.dataset.agendaProject, button.dataset.agendaTask));
 }
