@@ -81,9 +81,10 @@ function renderHomeGantt() {
 }
 function renderAgenda(container, tasks, includeProject) {
   if (!container) return;
-  const sorted = [...tasks].sort((a,b) => a.start.localeCompare(b.start) || a.name.localeCompare(b.name));
-  if (!sorted.length) { container.innerHTML = `<div class="agenda-empty">No tasks to show.</div>`; return; }
   const today = todayIso();
+  const visibleTasks = matchMedia("(max-width:620px)").matches ? tasks.filter(task => task.end >= today) : tasks;
+  const sorted = [...visibleTasks].sort((a,b) => Math.max(Date.parse(a.start), Date.parse(today)) - Math.max(Date.parse(b.start), Date.parse(today)) || a.name.localeCompare(b.name));
+  if (!sorted.length) { container.innerHTML = `<div class="agenda-empty">No tasks to show.</div>`; return; }
   container.innerHTML = sorted.map(task => {
     const active = task.start <= today && task.end >= today, projectId = task.projectId || state.activeProjectId;
     return `<button class="agenda-item" data-agenda-task="${task.id}" data-agenda-project="${projectId}"><i class="${statusClass(task.status)}"></i><span class="agenda-copy">${includeProject ? `<small>${esc(task.projectName)}</small>` : ""}<b>${esc(task.name)}</b><span>${formatDate(task.start)}${task.end !== task.start ? ` – ${formatDate(task.end)}` : ""}</span></span><em class="${active ? "active" : ""}">${active ? "Today" : esc(task.status)}</em></button>`;
@@ -120,19 +121,40 @@ function renderGantt() {
 }
 function wireEmptyButtons() { document.querySelectorAll(".empty-add").forEach(button => button.onclick = () => openTask()); }
 function wireTaskButtons() { document.querySelectorAll("[data-task]").forEach(button => button.onclick = () => openTask(button.dataset.task)); }
+function updateMobileDrag(bar, item, shift) {
+  if (!matchMedia("(max-width:620px)").matches || !item) return;
+  let bubble = $("mobileDragDate");
+  if (!bubble) { bubble = document.createElement("div"); bubble.id = "mobileDragDate"; bubble.className = "mobile-drag-date"; document.body.appendChild(bubble); }
+  const start = addDays(item.start, shift), end = addDays(item.end, shift);
+  bubble.textContent = `${formatDate(start)}${start === end ? "" : ` – ${formatDate(end)}`}`;
+  bubble.classList.add("show"); bar.classList.add("dragging");
+  const grid = bar.closest(".gantt-grid"), targetColumn = dayDiff(grid.dataset.chartStart, start) + 2;
+  grid.querySelectorAll(".day.drag-target").forEach(day => day.classList.remove("drag-target"));
+  [...grid.querySelectorAll(".day")].find(day => parseInt(day.style.gridColumn, 10) === targetColumn)?.classList.add("drag-target");
+}
+function finishMobileDrag(bar) {
+  bar.classList.remove("dragging"); $("mobileDragDate")?.classList.remove("show");
+  bar.closest(".gantt-grid")?.querySelectorAll(".day.drag-target").forEach(day => day.classList.remove("drag-target"));
+}
+function autoScrollMobileTimeline(bar, clientX) {
+  if (!matchMedia("(max-width:620px)").matches) return;
+  const wrap = bar.closest(".gantt-wrap"), rect = wrap?.getBoundingClientRect(); if (!wrap || !rect) return;
+  if (clientX > rect.right - 36) wrap.scrollLeft += 12; else if (clientX < rect.left + 186) wrap.scrollLeft -= 12;
+}
 function wireDrag(dayWidth) {
-  document.querySelectorAll("[data-bar]").forEach(bar => { let startX, moved = false, task;
-    bar.onpointerdown = event => { event.preventDefault(); startX = event.clientX; moved = false; task = project().tasks.find(t => t.id === bar.dataset.bar); bar.setPointerCapture(event.pointerId); };
-    bar.onpointermove = event => { if (startX == null) return; const dx = event.clientX - startX; moved ||= Math.abs(dx) > 4; bar.style.transform = `translateX(${Math.round(dx/dayWidth)*dayWidth}px)`; };
-    bar.onpointerup = event => { const shift = Math.round((event.clientX-startX)/dayWidth); bar.style.transform=""; startX=null; if (moved) { if (shift) { task.start=addDays(task.start,shift); task.end=addDays(task.end,shift); persist(); render(); toast("Task rescheduled"); } } else openTask(task.id); };
+  document.querySelectorAll("[data-bar]").forEach(bar => { let startX, startScroll, moved = false, task;
+    bar.onpointerdown = event => { event.preventDefault(); startX = event.clientX; startScroll = bar.closest(".gantt-wrap").scrollLeft; moved = false; task = project().tasks.find(t => t.id === bar.dataset.bar); bar.setPointerCapture(event.pointerId); updateMobileDrag(bar, task, 0); };
+    bar.onpointermove = event => { if (startX == null) return; const dx = event.clientX - startX + bar.closest(".gantt-wrap").scrollLeft - startScroll, shift = Math.round(dx/dayWidth); moved ||= Math.abs(dx) > 4; bar.style.transform = `translateX(${shift*dayWidth}px)`; updateMobileDrag(bar, task, shift); autoScrollMobileTimeline(bar, event.clientX); };
+    bar.onpointerup = event => { const dx = event.clientX - startX + bar.closest(".gantt-wrap").scrollLeft - startScroll, shift = Math.round(dx/dayWidth); bar.style.transform=""; startX=null; finishMobileDrag(bar); if (moved) { if (shift) { task.start=addDays(task.start,shift); task.end=addDays(task.end,shift); persist(); render(); toast("Task rescheduled"); } } else openTask(task.id); };
+    bar.onpointercancel = () => { bar.style.transform=""; startX=null; finishMobileDrag(bar); };
   });
 }
 function wireHomeDrag(dayWidth) {
-  document.querySelectorAll("[data-home-bar],[data-project-bar]").forEach(bar => { let startX, moved = false, item;
-    bar.onpointerdown = event => { event.preventDefault(); startX = event.clientX; moved = false; item = bar.dataset.homeBar ? taskForBar(bar) : state.projects.find(p => p.id === bar.dataset.projectBar); bar.setPointerCapture(event.pointerId); };
-    bar.onpointermove = event => { if (startX == null) return; const dx = event.clientX - startX; moved ||= Math.abs(dx) > 4; bar.style.transform = `translateX(${Math.round(dx/dayWidth)*dayWidth}px)`; };
-    bar.onpointerup = event => { if (startX == null) return; const shift = Math.round((event.clientX-startX)/dayWidth); bar.style.transform = ""; startX = null; if (moved) { if (shift && item) { item.start = addDays(item.start, shift); item.end = addDays(item.end, shift); persist(); renderHomeGantt(); toast(`${bar.dataset.homeBar ? "Task" : "Project"} rescheduled`); } } else if (bar.dataset.homeBar) openTaskFromHome(bar.dataset.homeParent, bar.dataset.homeBar); else openProject(bar.dataset.projectBar); };
-    bar.onpointercancel = () => { bar.style.transform = ""; startX = null; };
+  document.querySelectorAll("[data-home-bar],[data-project-bar]").forEach(bar => { let startX, startScroll, moved = false, item;
+    bar.onpointerdown = event => { event.preventDefault(); startX = event.clientX; startScroll = bar.closest(".gantt-wrap").scrollLeft; moved = false; item = bar.dataset.homeBar ? taskForBar(bar) : state.projects.find(p => p.id === bar.dataset.projectBar); bar.setPointerCapture(event.pointerId); updateMobileDrag(bar, item, 0); };
+    bar.onpointermove = event => { if (startX == null) return; const dx = event.clientX - startX + bar.closest(".gantt-wrap").scrollLeft - startScroll, shift = Math.round(dx/dayWidth); moved ||= Math.abs(dx) > 4; bar.style.transform = `translateX(${shift*dayWidth}px)`; updateMobileDrag(bar, item, shift); autoScrollMobileTimeline(bar, event.clientX); };
+    bar.onpointerup = event => { if (startX == null) return; const dx = event.clientX - startX + bar.closest(".gantt-wrap").scrollLeft - startScroll, shift = Math.round(dx/dayWidth); bar.style.transform = ""; startX = null; finishMobileDrag(bar); if (moved) { if (shift && item) { item.start = addDays(item.start, shift); item.end = addDays(item.end, shift); persist(); renderHomeGantt(); toast(`${bar.dataset.homeBar ? "Task" : "Project"} rescheduled`); } } else if (bar.dataset.homeBar) openTaskFromHome(bar.dataset.homeParent, bar.dataset.homeBar); else openProject(bar.dataset.projectBar); };
+    bar.onpointercancel = () => { bar.style.transform = ""; startX = null; finishMobileDrag(bar); };
   });
 }
 
