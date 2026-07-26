@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.3.1";
+const APP_VERSION = "1.3.2";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -128,10 +128,15 @@ function renderGantt() {
   let cursor = new Date(start);
   while (cursor <= end) { const month = cursor.getMonth(), year = cursor.getFullYear(), offset = dayDiff(toIso(start), toIso(cursor)); let span = 0; while (cursor <= end && cursor.getMonth() === month) { span++; cursor.setDate(cursor.getDate() + 1); } html += `<div class="month" style="grid-column:${offset + 2} / span ${span};grid-row:1">${new Intl.DateTimeFormat("en-US", {month:"long", year:"numeric"}).format(new Date(year, month, 1))}</div>`; }
   for (let i = 0; i < days; i++) { const d = new Date(start); d.setDate(d.getDate() + i); html += `<div class="day ${[0,6].includes(d.getDay()) ? "weekend" : ""} ${toIso(d) === today ? "today" : ""}" style="grid-column:${i + 2};grid-row:2">${d.getDate()}<small>${toIso(d) === today ? "TODAY" : ["S","M","T","W","T","F","S"][d.getDay()]}</small></div>`; }
-  tasks.forEach((task, index) => { const row = index + 3;
+  if (!scheduledTasks.length) {
+    const row = 3;
+    html += `<div class="task-label gantt-drop-label" style="grid-column:1;grid-row:${row}"><span>Drop task on a date</span></div>`;
+    for (let i=0;i<days;i++) { const d=new Date(start); d.setDate(d.getDate()+i); html += `<div class="gantt-cell ${[0,6].includes(d.getDay()) ? "weekend" : ""}" style="grid-column:${i+2};grid-row:${row}"></div>`; }
+  }
+  scheduledTasks.forEach((task, index) => { const row = index + 3;
     html += `<button class="task-label" data-task="${task.id}" style="grid-column:1;grid-row:${row}"><span><b>${esc(task.name)}</b></span></button>`;
     for (let i=0;i<days;i++) { const d=new Date(start); d.setDate(d.getDate()+i); html += `<div class="gantt-cell ${[0,6].includes(d.getDay()) ? "weekend" : ""}" style="grid-column:${i+2};grid-row:${row}"></div>`; }
-    if(task.start&&task.end){const offset=dayDiff(toIso(start),task.start),duration=dayDiff(task.start,task.end)+1;html += `<button class="bar ${statusClass(task.status)}" data-bar="${task.id}" style="grid-column:${offset+2} / span ${duration};grid-row:${row}">${esc(task.name)}</button>`;}
+    const offset=dayDiff(toIso(start),task.start),duration=dayDiff(task.start,task.end)+1;html += `<button class="bar ${statusClass(task.status)}" data-bar="${task.id}" style="grid-column:${offset+2} / span ${duration};grid-row:${row}">${esc(task.name)}</button>`;
   });
   $("gantt").innerHTML = html + `</div>`; wireTaskButtons(); wireDrag(width); markTruncatedBars(); scrollTimelineToToday($("gantt"));
 }
