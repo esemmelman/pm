@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.3.4";
+const APP_VERSION = "1.3.5";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -214,9 +214,9 @@ function hideCellTooltip() { $("cellTooltip").hidden = true; }
 function showSideTaskTooltip(button) {
   const tip = $("cellTooltip"), name = button.textContent.trim();
   tip.textContent = name; tip.classList.add("side-task-tooltip"); tip.hidden = false;
-  const rect = button.getBoundingClientRect(), box = tip.getBoundingClientRect();
-  let left = rect.right + 8, top = rect.top + (rect.height - box.height) / 2;
-  if (left + box.width > window.innerWidth - 8) left = Math.max(8, rect.left - box.width - 8);
+  const rect = button.getBoundingClientRect(), box = tip.getBoundingClientRect(), chart = document.querySelector(".gantt-wrap:not([hidden])") || document.querySelector("main");
+  let left = chart?.getBoundingClientRect().left ?? rect.right, top = rect.top + (rect.height - box.height) / 2;
+  if (left + box.width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - box.width - 8);
   top = Math.max(8, Math.min(top, window.innerHeight - box.height - 8));
   tip.style.left = `${left}px`; tip.style.top = `${top}px`;
 }
