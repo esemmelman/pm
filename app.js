@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.3.3";
+const APP_VERSION = "1.3.4";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -211,6 +211,16 @@ function showCellTooltip(cell) {
   const tip = $("cellTooltip"); tip.innerHTML = `<strong>${formatDate(value)}</strong><span>${relative}</span>`; tip.hidden = false; const rect = cell.getBoundingClientRect(), box = tip.getBoundingClientRect(); let left = rect.left + rect.width/2 - box.width/2, top = rect.top - box.height - 8; left = Math.max(8, Math.min(left, window.innerWidth-box.width-8)); if(top<8) top=rect.bottom+8; tip.style.left=`${left}px`;tip.style.top=`${top}px`;
 }
 function hideCellTooltip() { $("cellTooltip").hidden = true; }
+function showSideTaskTooltip(button) {
+  const tip = $("cellTooltip"), name = button.textContent.trim();
+  tip.textContent = name; tip.classList.add("side-task-tooltip"); tip.hidden = false;
+  const rect = button.getBoundingClientRect(), box = tip.getBoundingClientRect();
+  let left = rect.right + 8, top = rect.top + (rect.height - box.height) / 2;
+  if (left + box.width > window.innerWidth - 8) left = Math.max(8, rect.left - box.width - 8);
+  top = Math.max(8, Math.min(top, window.innerHeight - box.height - 8));
+  tip.style.left = `${left}px`; tip.style.top = `${top}px`;
+}
+function hideSideTaskTooltip() { const tip = $("cellTooltip"); tip.classList.remove("side-task-tooltip"); tip.hidden = true; }
 function askDelete(type, item) { state.pendingDelete = { type, item }; $("confirmTitle").textContent = `Delete ${type}?`; $("confirmText").textContent = type === "project" ? `“${item.name}” and all of its tasks will be permanently deleted.` : `“${item.name}” will be permanently deleted.`; $("confirm").hidden = false; }
 
 async function loadRemoteWorkspace() {
@@ -292,8 +302,8 @@ function setup() {
     task.start=droppedDate;task.end=addDays(droppedDate,duration-1);
     persist();render();toast(`${task.name} scheduled for ${formatDate(droppedDate)}`);
   });
-  document.addEventListener("mouseover", event => { const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))showCellTooltip(cell); });
-  document.addEventListener("mouseout", event => { const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))hideCellTooltip(); });
+  document.addEventListener("mouseover", event => { const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){showSideTaskTooltip(sideTask);return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))showCellTooltip(cell); });
+  document.addEventListener("mouseout", event => { const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){hideSideTaskTooltip();return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))hideCellTooltip(); });
   document.onkeydown=event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();$("searchInput").focus();}if(event.key==="Escape"){closeModals();$("confirm").hidden=true;}};
   render();
 }

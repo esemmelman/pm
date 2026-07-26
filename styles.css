@@ -88,3 +88,5 @@
 .gantt-cell.task-drop-target{background:#ccebdc!important;outline:3px solid #176b5b;outline-offset:-3px}
 .gantt-drop-label{color:var(--muted);font-weight:500;cursor:default}
 .sidebar .side-task{padding-left:47px;gap:0}
+.brand-button .app-version{margin-left:auto;color:#b6c9bf;font:600 11px "DM Sans",sans-serif}
+.cell-tooltip.side-task-tooltip{max-width:360px;padding:8px 11px;color:#fff;background:#173b2e;border-color:#315f49;font:600 13px "DM Sans",sans-serif;white-space:normal}
