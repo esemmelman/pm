@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.3.5";
+const APP_VERSION = "1.3.6";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -304,6 +304,7 @@ function setup() {
   });
   document.addEventListener("mouseover", event => { const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){showSideTaskTooltip(sideTask);return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))showCellTooltip(cell); });
   document.addEventListener("mouseout", event => { const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){hideSideTaskTooltip();return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))hideCellTooltip(); });
+  document.addEventListener("mousedown", hideSideTaskTooltip);
   document.onkeydown=event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();$("searchInput").focus();}if(event.key==="Escape"){closeModals();$("confirm").hidden=true;}};
   render();
 }
