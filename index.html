@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=1.2.2">
+  <link rel="stylesheet" href="styles.css?v=1.3.0">
 </head>
 <body>
   <div class="app">
@@ -17,7 +17,7 @@
       <div class="side-heading"><span>Projects</span><button id="sideAddProject" title="Add project">＋</button></div>
       <nav id="projectList" class="project-list" aria-label="Projects"></nav>
       <div class="side-empty" id="sideEmpty">No projects yet</div>
-      <div class="storage-note"><span class="storage-status">⌁ Saved on this device</span><span class="app-version">v1.2.2</span></div>
+      <div class="storage-note"><span class="storage-status">⌁ Saved on this device</span><span class="app-version">v1.3.0</span></div>
     </aside>
 
     <main>
@@ -71,7 +71,7 @@
       <input type="hidden" id="taskId">
       <label>Task name<input id="taskNameInput" required maxlength="80" placeholder="What needs to be done?"></label>
       <div class="form-grid"><label>Status<select id="taskStatus"><option>To do</option><option>In progress</option><option>Review</option><option>Done</option></select></label><label>Owner<input id="taskOwner" maxlength="40" placeholder="Optional"></label></div>
-      <div class="form-grid"><label>Start date<input id="taskStart" type="date" required></label><label>End date<input id="taskEnd" type="date" required></label></div>
+      <div class="form-grid"><label>Start date<input id="taskStart" type="date"></label><label>End date<input id="taskEnd" type="date"></label></div>
       <label>Notes<textarea id="taskNotes" rows="3" maxlength="300" placeholder="Add details or context…"></textarea></label>
       <footer><button type="button" class="danger" id="deleteTask" hidden>Delete task</button><span></span><button type="button" class="secondary" data-close>Cancel</button><button class="primary" type="submit">Save task</button></footer>
     </form>
@@ -85,6 +85,6 @@
   <div class="confirm" id="migrationModal" hidden><div><h3>Back up and migrate?</h3><p>Your existing projects are stored only in this browser. Northstar will first download a dated JSON backup, then copy the data to Supabase. Keep the downloaded file somewhere safe.</p><footer><button class="secondary" id="migrationLater">Not now</button><button class="primary" id="migrationStart">Back up &amp; migrate</button></footer></div></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="app.js?v=1.2.2"></script>
+  <script src="app.js?v=1.3.0"></script>
 </body>
 </html>
