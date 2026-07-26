@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.2.1";
+const APP_VERSION = "1.2.2";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -88,7 +88,7 @@ function renderAgenda(container, tasks, includeProject) {
   if (!sorted.length) { container.innerHTML = `<div class="agenda-empty">No tasks to show.</div>`; return; }
   container.innerHTML = sorted.map(task => {
     const active = task.start <= today && task.end >= today, daysAway = Math.max(0, dayDiff(today, task.start)), projectId = task.projectId || state.activeProjectId;
-    const countdown = daysAway === 0 ? "Today" : `In ${daysAway} day${daysAway === 1 ? "" : "s"}`;
+    const countdown = daysAway === 0 ? "Today" : `${daysAway} day${daysAway === 1 ? "" : "s"}`;
     return `<button class="agenda-item" data-agenda-task="${task.id}" data-agenda-project="${projectId}"><i class="${statusClass(task.status)}"></i><span class="agenda-copy">${includeProject ? `<small>${esc(task.projectName)}</small>` : ""}<b>${esc(task.name)}</b><span>${formatDate(task.start)}${task.end !== task.start ? ` – ${formatDate(task.end)}` : ""}<span class="agenda-countdown"> · ${countdown}</span></span></span><span class="agenda-meta"><em class="${active ? "active" : ""}">${active ? "Active" : esc(task.status)}</em></span></button>`;
   }).join("");
   container.querySelectorAll("[data-agenda-task]").forEach(button => button.onclick = () => openTaskFromHome(button.dataset.agendaProject, button.dataset.agendaTask));
