@@ -211,6 +211,26 @@ function showCellTooltip(cell) {
   const tip = $("cellTooltip"); tip.innerHTML = `<strong>${formatDate(value)}</strong><span>${relative}</span>`; tip.hidden = false; const rect = cell.getBoundingClientRect(), box = tip.getBoundingClientRect(); let left = rect.left + rect.width/2 - box.width/2, top = rect.top - box.height - 8; left = Math.max(8, Math.min(left, window.innerWidth-box.width-8)); if(top<8) top=rect.bottom+8; tip.style.left=`${left}px`;tip.style.top=`${top}px`;
 }
 function hideCellTooltip() { $("cellTooltip").hidden = true; }
+function showChartTaskTooltip(element) {
+  const task = element.matches("[data-bar],[data-home-bar]")
+    ? taskForBar(element)
+    : element.dataset.task
+      ? project()?.tasks.find(item => item.id === element.dataset.task)
+      : state.projects.find(item => item.id === element.dataset.homeParent)?.tasks.find(item => item.id === element.dataset.homeTask);
+  if (!task) return;
+  const tip = $("cellTooltip");
+  tip.textContent = task.name;
+  tip.classList.remove("side-task-tooltip");
+  tip.classList.add("chart-task-tooltip");
+  tip.hidden = false;
+  const rect = element.getBoundingClientRect(), box = tip.getBoundingClientRect(), gap = 10;
+  let left = rect.left - box.width - gap, top = rect.top + (rect.height - box.height) / 2;
+  if (left < 8) { left = Math.min(window.innerWidth - box.width - 8, rect.right + gap); tip.classList.add("tooltip-right"); }
+  else tip.classList.remove("tooltip-right");
+  top = Math.max(8, Math.min(top, window.innerHeight - box.height - 8));
+  tip.style.left = `${left}px`; tip.style.top = `${top}px`;
+}
+function hideChartTaskTooltip() { const tip = $("cellTooltip"); tip.classList.remove("chart-task-tooltip", "tooltip-right"); tip.hidden = true; }
 function showSideTaskTooltip(button) {
   const tip = $("cellTooltip"), name = button.textContent.trim();
   tip.textContent = name; tip.classList.add("side-task-tooltip"); tip.hidden = false;
@@ -302,8 +322,8 @@ function setup() {
     task.start=droppedDate;task.end=addDays(droppedDate,duration-1);
     persist();render();toast(`${task.name} scheduled for ${formatDate(droppedDate)}`);
   });
-  document.addEventListener("mouseover", event => { const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){showSideTaskTooltip(sideTask);return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))showCellTooltip(cell); });
-  document.addEventListener("mouseout", event => { const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){hideSideTaskTooltip();return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))hideCellTooltip(); });
+  document.addEventListener("mouseover", event => { const chartTask=event.target.closest(".task-label[data-task],.task-label[data-home-task],.bar[data-bar],.bar[data-home-bar]");if(chartTask&&!chartTask.contains(event.relatedTarget)){showChartTaskTooltip(chartTask);return;}const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){showSideTaskTooltip(sideTask);return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))showCellTooltip(cell); });
+  document.addEventListener("mouseout", event => { const chartTask=event.target.closest(".task-label[data-task],.task-label[data-home-task],.bar[data-bar],.bar[data-home-bar]");if(chartTask&&!chartTask.contains(event.relatedTarget)){hideChartTaskTooltip();return;}const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){hideSideTaskTooltip();return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))hideCellTooltip(); });
   document.addEventListener("mousedown", hideSideTaskTooltip);
   document.onkeydown=event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();$("searchInput").focus();}if(event.key==="Escape"){closeModals();$("confirm").hidden=true;}};
   render();
