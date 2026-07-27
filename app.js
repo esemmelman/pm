@@ -223,14 +223,13 @@ function showChartTaskTooltip(element) {
   tip.classList.remove("side-task-tooltip");
   tip.classList.add("chart-task-tooltip");
   tip.hidden = false;
-  const rect = element.getBoundingClientRect(), box = tip.getBoundingClientRect(), gap = 10;
-  let left = rect.left - box.width - gap, top = rect.top + (rect.height - box.height) / 2;
-  if (left < 8) { left = Math.min(window.innerWidth - box.width - 8, rect.right + gap); tip.classList.add("tooltip-right"); }
-  else tip.classList.remove("tooltip-right");
+  const rect = element.getBoundingClientRect(), box = tip.getBoundingClientRect();
+  let left = rect.right - box.width, top = rect.top + (rect.height - box.height) / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - box.width - 8));
   top = Math.max(8, Math.min(top, window.innerHeight - box.height - 8));
   tip.style.left = `${left}px`; tip.style.top = `${top}px`;
 }
-function hideChartTaskTooltip() { const tip = $("cellTooltip"); tip.classList.remove("chart-task-tooltip", "tooltip-right"); tip.hidden = true; }
+function hideChartTaskTooltip() { const tip = $("cellTooltip"); tip.classList.remove("chart-task-tooltip"); tip.hidden = true; }
 function showSideTaskTooltip(button) {
   const tip = $("cellTooltip"), name = button.textContent.trim();
   tip.textContent = name; tip.classList.add("side-task-tooltip"); tip.hidden = false;
