@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.3.8";
+const APP_VERSION = "1.3.9";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -212,6 +212,8 @@ function showCellTooltip(cell) {
 }
 function hideCellTooltip() { $("cellTooltip").hidden = true; }
 function showChartTaskTooltip(element) {
+  const textElement = element.matches(".task-label") ? element.querySelector("b") : element;
+  if (!textElement || textElement.scrollWidth <= textElement.clientWidth + 1) return;
   const task = element.matches("[data-bar],[data-home-bar]")
     ? taskForBar(element)
     : element.dataset.task
