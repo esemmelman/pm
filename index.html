@@ -8,16 +8,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=1.4.0">
+  <link rel="stylesheet" href="styles.css?v=1.4.1">
 </head>
 <body>
   <div class="app">
     <aside class="sidebar" id="sidebar">
-      <button class="brand brand-button" id="ganttHomeButton"><span>⌁</span>Gantt chart <small class="app-version">v1.4.0</small></button>
+      <button class="brand brand-button" id="ganttHomeButton"><span>⌁</span>Gantt chart <small class="app-version">v1.4.1</small></button>
       <div class="side-heading"><span>Projects</span><button id="sideAddProject" title="Add project">＋</button></div>
       <nav id="projectList" class="project-list" aria-label="Projects"></nav>
       <div class="side-empty" id="sideEmpty">No projects yet</div>
-      <div class="storage-note"><span class="storage-status">⌁ Saved on this device</span><span class="app-version">v1.4.0</span></div>
+      <div class="storage-note"><span class="storage-status">⌁ Saved on this device</span><span class="app-version">v1.4.1</span></div>
     </aside>
 
     <main>
@@ -30,9 +30,7 @@
       <div class="content">
         <section class="gantt-home" id="welcome">
           <div class="home-heading"><div class="home-toolbar-actions"><button class="home-filter-button" id="homeFilterButton">≡ Filter <i id="homeFilterDot" hidden></i></button><div class="zoom"><button id="homeZoomOut">−</button><span id="homeZoomLabel">Week</span><button id="homeZoomIn">＋</button></div></div><p class="eyebrow">ALL PROJECTS</p><small id="homeSummary" hidden>No projects yet</small></div>
-          <div class="mobile-view-switch" id="homeViewSwitch" aria-label="Choose view"><button data-mobile-view="agenda" class="active">Agenda</button><button data-mobile-view="timeline">Timeline</button></div>
           <div class="filters home-filters" id="homeFilters" hidden><label>Status<select id="homeStatusFilter"><option value="all">All statuses</option><option>To do</option><option>In progress</option><option>Review</option><option>Done</option></select></label><label>Date<select id="homeDateFilter"><option value="all">All dates</option><option value="today">Current day</option><option value="today-plus-one">Current day + 1</option></select></label><button id="clearHomeFilter">Clear</button></div>
-          <div class="mobile-agenda" id="homeAgenda"></div>
           <div class="timeline-pane"><div class="swipe-hint" aria-hidden="true">Swipe for dates <span>&rarr;</span></div><div class="gantt-wrap home-gantt" id="homeGantt"></div>
           <div class="legend home-legend"><span><i class="todo"></i>To do</span><span><i class="doing"></i>In progress</span><span><i class="review"></i>Review</span><span><i class="done"></i>Done</span></div></div>
         </section>
@@ -43,9 +41,7 @@
             <div class="head-actions"><button class="secondary" id="editProject">Edit project</button><button class="more-button" id="projectMenu">•••</button><div class="mini-menu" id="projectMenuPopup" hidden><button id="deleteProject">Delete project</button></div></div>
           </div>
 
-          <div class="mobile-view-switch" id="projectViewSwitch" aria-label="Choose view"><button data-mobile-view="agenda" class="active">Agenda</button><button data-mobile-view="timeline">Timeline</button></div>
           <div class="filters" id="filters" hidden><label>Status<select id="statusFilter"><option value="all">All statuses</option><option>To do</option><option>In progress</option><option>Review</option><option>Done</option></select></label><button id="clearFilter">Clear</button></div>
-          <div class="mobile-agenda" id="projectAgenda"></div>
 
           <section class="panel timeline-pane" id="ganttView"><div class="swipe-hint" aria-hidden="true">Swipe for dates <span>&rarr;</span></div><div class="gantt-wrap" id="gantt"></div><div class="legend"><span><i class="todo"></i>To do</span><span><i class="doing"></i>In progress</span><span><i class="review"></i>Review</span><span><i class="done"></i>Done</span><small>Drag a bar to reschedule</small></div></section>
         </section>
@@ -85,6 +81,6 @@
   <div class="confirm" id="migrationModal" hidden><div><h3>Back up and migrate?</h3><p>Your existing projects are stored only in this browser. Northstar will first download a dated JSON backup, then copy the data to Supabase. Keep the downloaded file somewhere safe.</p><footer><button class="secondary" id="migrationLater">Not now</button><button class="primary" id="migrationStart">Back up &amp; migrate</button></footer></div></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="app.js?v=1.4.0"></script>
+  <script src="app.js?v=1.4.1"></script>
 </body>
 </html>

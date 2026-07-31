@@ -93,3 +93,11 @@
 .cell-tooltip.side-task-tooltip{max-width:360px;padding:8px 11px;color:#fff;background:#173b2e;border-color:#315f49;font:600 13px "DM Sans",sans-serif;white-space:normal}
 .cell-tooltip.chart-task-tooltip{max-width:min(360px,calc(100vw - 16px));padding:8px 11px;color:#fff;background:#173b2e;border-color:#315f49;font:600 13px/1.35 "DM Sans",sans-serif;white-space:normal}
 @media(max-width:620px){.mobile-matrix{grid-template-rows:64px}}
+@media(max-width:620px){
+.timeline-pane{display:block}.swipe-hint{display:flex;justify-content:flex-end;align-items:center;gap:5px;height:24px;color:#778179;font-size:10px}
+.mobile-matrix{--date-width:54px;grid-template-columns:var(--date-width) repeat(var(--matrix-columns),108px);grid-template-rows:108px;grid-auto-rows:38px}
+.matrix-corner,.matrix-column-head{height:108px}.matrix-corner{padding:7px 4px;font-size:8px}
+.matrix-column-head{align-content:center;align-items:center;flex-wrap:wrap;padding:12px 5px 6px;line-height:1.15}.matrix-column-head span{max-width:82px}.matrix-column-head.task span{max-width:none;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;display:block;width:100%}
+.matrix-date{grid-template-columns:18px 1fr;padding:2px 4px}.matrix-date b{font-size:14px}.matrix-date span{font-size:8px}.matrix-date small{font-size:6px}
+.matrix-cell{background:#fff}.matrix-cell:nth-child(odd):not(.active):not(.weekend){background:#fff}.matrix-cell.weekend:not(.active){background:#e5e4df}.matrix-date.weekend:not(.today){background:#e5e4df}.matrix-cell.active i,.matrix-cell.task.active i{inset:6px 44px}
+}
