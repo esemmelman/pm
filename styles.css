@@ -101,3 +101,7 @@
 .matrix-date{grid-template-columns:18px 1fr;padding:2px 4px}.matrix-date b{font-size:14px}.matrix-date span{font-size:8px}.matrix-date small{font-size:6px}
 .matrix-cell{background:#fff}.matrix-cell:nth-child(odd):not(.active):not(.weekend){background:#fff}.matrix-cell.weekend:not(.active){background:#e5e4df}.matrix-date.weekend:not(.today){background:#e5e4df}.matrix-cell.active i,.matrix-cell.task.active i{inset:6px 44px}
 }
+@media(max-width:620px){
+.mobile-matrix{grid-template-rows:78px}.matrix-corner,.matrix-column-head{height:78px}.matrix-column-head{padding:5px 3px;gap:2px}.matrix-column-head.task:before{top:2px}.matrix-column-head span{max-width:88px}.matrix-column-head.task span{line-height:1.05}
+.matrix-date{grid-template-columns:18px 1fr auto;column-gap:2px}.matrix-date b{grid-row:1 / span 2}.matrix-date span{font-size:11px;line-height:1;font-weight:800}.matrix-date small{font-size:9px;line-height:1;font-weight:800}.matrix-date em{grid-column:3;grid-row:1 / span 2;align-self:center;color:#69746c;font:700 8px DM Sans;font-style:normal}.matrix-date.today em{color:#31533f}
+}
