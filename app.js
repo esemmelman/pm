@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.4.2";
+const APP_VERSION = "1.4.3";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -89,10 +89,10 @@ function renderMobileHomeMatrix(tasks, filtered, start, end) {
   });
   for (let dayIndex=0; dayIndex<days; dayIndex++) {
     const date = addDays(toIso(start), dayIndex), parsed = parseDate(date), row = dayIndex + 2, isToday = date === todayIso(), weekend = [0,6].includes(parsed.getDay()), relativeDay = dayDiff(todayIso(), date);
-    html += `<div class="matrix-date ${isToday?"today":""} ${weekend?"weekend":""}" style="grid-row:${row}"><b>${parsed.getDate()}</b><span>${new Intl.DateTimeFormat("en-US",{month:"short"}).format(parsed)}</span><small>${isToday?"TODAY":["SUN","MON","TUE","WED","THU","FRI","SAT"][parsed.getDay()]}</small><em>${relativeDay>0?"+":""}${relativeDay}d</em></div>`;
+    html += `<div class="matrix-date ${isToday?"today":""} ${weekend?"weekend":""}" style="grid-row:${row}"><b>${parsed.getDate()}</b><span>${new Intl.DateTimeFormat("en-US",{month:"short"}).format(parsed)}</span><small>${isToday?"TODAY":["SUN","MON","TUE","WED","THU","FRI","SAT"][parsed.getDay()]}</small></div>`;
     columns.forEach((column, columnIndex) => {
       const active = column.start && column.end && date >= column.start && date <= column.end;
-      html += `<button class="matrix-cell ${column.type} ${active?"active":""} ${weekend?"weekend":""}" data-matrix-date="${date}" data-matrix-project-id="${column.project.id}" ${column.type === "task" ? `data-matrix-task-id="${column.id}"` : ""} style="grid-column:${columnIndex+2};grid-row:${row};--project-color:${column.project.color}" aria-label="${esc(column.name)} on ${date}">${active?"<i></i>":""}</button>`;
+      html += `<button class="matrix-cell ${column.type} ${active?"active":""} ${weekend?"weekend":""}" data-matrix-date="${date}" data-matrix-project-id="${column.project.id}" ${column.type === "task" ? `data-matrix-task-id="${column.id}"` : ""} style="grid-column:${columnIndex+2};grid-row:${row};--project-color:${column.project.color}" aria-label="${esc(column.name)} on ${date}, ${relativeDay}">${active?"<i></i>":""}<span>${relativeDay}</span></button>`;
     });
   }
   $("homeGantt").innerHTML = html + `</div>`;
