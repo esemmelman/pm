@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.4.5";
+const APP_VERSION = "1.4.6";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -219,12 +219,14 @@ function wireHomeDrag(dayWidth) {
 }
 
 function openProject(id = null, selectedDate = null) {
+  $("sidebar").classList.remove("open");
   const p = state.projects.find(item => item.id === id); state.color = p?.color || "#dbe88f";
   $("projectId").value = p?.id || ""; $("projectNameInput").value = p?.name || ""; $("projectDescriptionInput").value = p?.description || ""; $("projectStart").value = p?.start || selectedDate || ""; $("projectEnd").value = p?.end || selectedDate || "";
   $("projectModalLabel").textContent = p ? "PROJECT SETTINGS" : "NEW PROJECT"; $("projectModalTitle").textContent = p ? "Edit project" : "Create a project";
   document.querySelectorAll("[data-color]").forEach(b => b.classList.toggle("selected", b.dataset.color === state.color)); $("projectModal").hidden = false; setTimeout(() => $("projectNameInput").focus(), 30);
 }
 function openTask(id = null, selectedDate = null) {
+  $("sidebar").classList.remove("open");
   const task = project()?.tasks.find(item => item.id === id); $("taskForm").reset(); $("taskId").value = task?.id || ""; $("taskNameInput").value = task?.name || ""; $("taskStatus").value = task?.status || "To do"; $("taskOwner").value = task?.owner || ""; $("taskStart").value = task?.start || selectedDate || ""; $("taskEnd").value = task?.end || selectedDate || ""; $("taskNotes").value = task?.notes || "";
   $("taskModalLabel").textContent = task ? "TASK DETAILS" : "NEW TASK"; $("taskModalTitle").textContent = task ? "Edit task" : "Add a task"; $("deleteTask").hidden = !task; $("taskModal").hidden = false; setTimeout(() => $("taskNameInput").focus(), 30);
 }
