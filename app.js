@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.4.4";
+const APP_VERSION = "1.4.5";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -85,7 +85,7 @@ function renderMobileHomeMatrix(tasks, filtered, start, end) {
   let html = `<div class="mobile-matrix" style="--matrix-columns:${columns.length}"><div class="matrix-corner">DATE</div>`;
   columns.forEach((column, index) => {
     const selected = column.project === expanded;
-    html += `<button class="matrix-column-head ${column.type} ${selected?"selected":""}" data-matrix-${column.type}="${column.id}" style="grid-column:${index+2};grid-row:1;--project-color:${column.project.color}"><i></i><span>${esc(column.name)}</span>${column.type === "project" ? `<b>${selected?"−":"＋"}</b>` : ""}</button>`;
+    html += `<button class="matrix-column-head ${column.type} ${selected?"selected":""}" data-matrix-${column.type}="${column.id}" style="grid-column:${index+2};grid-row:1;--project-color:${column.project.color}">${column.type === "task" ? `<span class="matrix-task-jump" data-matrix-task-jump="${column.id}">TASK</span>` : ""}<i></i><span>${esc(column.name)}</span>${column.type === "project" ? `<b>${selected?"−":"＋"}</b>` : ""}</button>`;
   });
   for (let dayIndex=0; dayIndex<days; dayIndex++) {
     const date = addDays(toIso(start), dayIndex), parsed = parseDate(date), row = dayIndex + 2, isToday = date === todayIso(), weekend = [0,6].includes(parsed.getDay()), relativeDay = dayDiff(todayIso(), date);
@@ -98,8 +98,16 @@ function renderMobileHomeMatrix(tasks, filtered, start, end) {
   $("homeGantt").innerHTML = html + `</div>`;
   $("homeGantt").scrollLeft = 0;
   document.querySelectorAll("[data-matrix-project]").forEach(button => button.onclick = () => { state.mobileExpandedProjectId = state.mobileExpandedProjectId === button.dataset.matrixProject ? null : button.dataset.matrixProject; renderHomeGantt(); });
-  document.querySelectorAll("[data-matrix-task]").forEach(button => button.onclick = () => openTaskFromHome(expanded.id, button.dataset.matrixTask));
+  document.querySelectorAll("[data-matrix-task]").forEach(button => button.onclick = event => { if (event.target.closest("[data-matrix-task-jump]")) { scrollMobileTaskDateToThirdRow(button.dataset.matrixTask); return; } openTaskFromHome(expanded.id, button.dataset.matrixTask); });
   document.querySelectorAll(".matrix-cell").forEach(cell => cell.onclick = () => { const taskId = cell.dataset.matrixTaskId; if (taskId) openTaskFromHome(cell.dataset.matrixProjectId, taskId); else { state.activeProjectId = cell.dataset.matrixProjectId; persist(); render(); openTask(null, cell.dataset.matrixDate); } });
+}
+function scrollMobileTaskDateToThirdRow(taskId) {
+  const wrap = $("homeGantt"), task = allTasks().find(item => item.id === taskId);
+  if (!wrap || !task?.start) { toast("This task has no start date"); return; }
+  const target = wrap.querySelector(`.matrix-cell[data-matrix-task-id="${CSS.escape(taskId)}"][data-matrix-date="${task.start}"]`), grid = target?.closest(".mobile-matrix");
+  if (!target || !grid) return;
+  const headerHeight = grid.querySelector(".matrix-column-head")?.offsetHeight || 78, rowHeight = grid.querySelector(".matrix-date")?.offsetHeight || 38;
+  wrap.scrollTo({ top:Math.max(0, target.offsetTop - headerHeight - rowHeight * 2), behavior:"smooth" });
 }
 function renderHomeGantt() {
   const all = allTasks(), statusFilter = $("homeStatusFilter").value, dateFilter = $("homeDateFilter").value, query = $("searchInput").value.trim().toLowerCase(), today = todayIso(), tomorrow = addDays(today, 1);

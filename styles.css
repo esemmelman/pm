@@ -109,4 +109,5 @@
 .gantt-home .home-heading{gap:5px;min-height:26px;margin-bottom:3px}.gantt-home .home-toolbar-actions{gap:4px}.gantt-home .home-filter-button{height:26px}.gantt-home .home-heading .eyebrow{font-size:12px}
 .matrix-date{grid-template-columns:18px 1fr}.matrix-cell>span{position:relative;z-index:2;color:#6c766f;font:700 10px DM Sans}.matrix-cell.active>span{color:#173b2e}.matrix-cell.active i{z-index:1}
 .sidebar{z-index:120;isolation:isolate;box-shadow:12px 0 28px rgba(10,31,22,.3)}
+.matrix-column-head.task:before{content:none}.matrix-task-jump{position:absolute;top:0;left:0;width:100%;min-height:22px;padding:5px 3px 3px;color:#6f7972;font:800 9px DM Sans;letter-spacing:.6px;line-height:1;cursor:pointer}.matrix-task-jump:active{background:#dfe7dc;color:#173b2e}.matrix-column-head.task>i{margin-top:12px}
 }
