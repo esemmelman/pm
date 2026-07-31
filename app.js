@@ -1,10 +1,10 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.3.9";
+const APP_VERSION = "1.4.0";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
 const STATUS = ["To do", "In progress", "Review", "Done"];
-const state = { projects: [], activeProjectId: null, view: "gantt", zoom: 1, color: "#dbe88f", pendingDelete: null, collapsedProjects: new Set(), homeCollapsedProjects: new Set() };
+const state = { projects: [], activeProjectId: null, view: "gantt", zoom: 1, color: "#dbe88f", pendingDelete: null, collapsedProjects: new Set(), homeCollapsedProjects: new Set(), mobileExpandedProjectId: null };
 const $ = id => document.getElementById(id);
 const esc = value => { const el = document.createElement("span"); el.textContent = value ?? ""; return el.innerHTML; };
 const parseDate = value => new Date(`${value}T12:00:00`);
@@ -71,6 +71,36 @@ function allTasks() { return state.projects.flatMap(p => p.tasks.map(task => ({ 
 function openProjectView(id) { state.activeProjectId = id; persist(); render(); $("sidebar").classList.remove("open"); }
 function openTaskFromHome(projectId, taskId) { state.activeProjectId = projectId; persist(); render(); openTask(taskId); }
 function clearHomeFilters() { $("homeStatusFilter").value = "all"; $("homeDateFilter").value = "all"; $("searchInput").value = ""; renderHomeGantt(); }
+function renderMobileHomeMatrix(tasks, filtered, start, end) {
+  const visibleProjects = state.projects.filter(p => !filtered || tasks.some(task => task.projectId === p.id));
+  const expanded = visibleProjects.find(p => p.id === state.mobileExpandedProjectId) || null;
+  const projects = expanded ? [expanded, ...visibleProjects.filter(p => p.id !== expanded.id)] : visibleProjects;
+  const columns = projects.flatMap(p => {
+    const projectColumn = { type:"project", id:p.id, project:p, name:p.name, start:p.start, end:p.end };
+    if (p !== expanded) return [projectColumn];
+    const taskColumns = tasks.filter(task => task.projectId === p.id).sort(compareTaskSchedule).map(task => ({ type:"task", id:task.id, project:p, name:task.name, start:task.start, end:task.end, task }));
+    return [projectColumn, ...taskColumns];
+  });
+  const days = dayDiff(toIso(start), toIso(end)) + 1;
+  let html = `<div class="mobile-matrix" style="--matrix-columns:${columns.length}"><div class="matrix-corner">DATE</div>`;
+  columns.forEach((column, index) => {
+    const selected = column.project === expanded;
+    html += `<button class="matrix-column-head ${column.type} ${selected?"selected":""}" data-matrix-${column.type}="${column.id}" style="grid-column:${index+2};grid-row:1;--project-color:${column.project.color}"><i></i><span>${esc(column.name)}</span>${column.type === "project" ? `<b>${selected?"−":"＋"}</b>` : ""}</button>`;
+  });
+  for (let dayIndex=0; dayIndex<days; dayIndex++) {
+    const date = addDays(toIso(start), dayIndex), parsed = parseDate(date), row = dayIndex + 2, isToday = date === todayIso();
+    html += `<div class="matrix-date ${isToday?"today":""}" style="grid-row:${row}"><b>${parsed.getDate()}</b><span>${new Intl.DateTimeFormat("en-US",{month:"short"}).format(parsed)}</span><small>${isToday?"TODAY":["SUN","MON","TUE","WED","THU","FRI","SAT"][parsed.getDay()]}</small></div>`;
+    columns.forEach((column, columnIndex) => {
+      const active = column.start && column.end && date >= column.start && date <= column.end;
+      html += `<button class="matrix-cell ${column.type} ${active?"active":""}" data-matrix-date="${date}" data-matrix-project-id="${column.project.id}" ${column.type === "task" ? `data-matrix-task-id="${column.id}"` : ""} style="grid-column:${columnIndex+2};grid-row:${row};--project-color:${column.project.color}" aria-label="${esc(column.name)} on ${date}">${active?"<i></i>":""}</button>`;
+    });
+  }
+  $("homeGantt").innerHTML = html + `</div>`;
+  $("homeGantt").scrollLeft = 0;
+  document.querySelectorAll("[data-matrix-project]").forEach(button => button.onclick = () => { state.mobileExpandedProjectId = state.mobileExpandedProjectId === button.dataset.matrixProject ? null : button.dataset.matrixProject; renderHomeGantt(); });
+  document.querySelectorAll("[data-matrix-task]").forEach(button => button.onclick = () => openTaskFromHome(expanded.id, button.dataset.matrixTask));
+  document.querySelectorAll(".matrix-cell").forEach(cell => cell.onclick = () => { const taskId = cell.dataset.matrixTaskId; if (taskId) openTaskFromHome(cell.dataset.matrixProjectId, taskId); else { state.activeProjectId = cell.dataset.matrixProjectId; persist(); render(); openTask(null, cell.dataset.matrixDate); } });
+}
 function renderHomeGantt() {
   const all = allTasks(), statusFilter = $("homeStatusFilter").value, dateFilter = $("homeDateFilter").value, query = $("searchInput").value.trim().toLowerCase(), today = todayIso(), tomorrow = addDays(today, 1);
   const tasks = all.filter(task => { const statusMatch = statusFilter === "all" || task.status === statusFilter; const dateMatch = dateFilter === "all" || (dateFilter === "today" ? task.start <= today && task.end >= today : task.start <= tomorrow && task.end >= today); const searchMatch = !query || `${task.name} ${task.owner} ${task.notes} ${task.projectName}`.toLowerCase().includes(query); return statusMatch && dateMatch && searchMatch; });
@@ -85,6 +115,7 @@ function renderHomeGantt() {
   const timelineTasks=tasks.filter(task=>task.start&&task.end),projectDates=state.projects.flatMap(p=>[p.start,p.end]).filter(Boolean);
   if(!timelineTasks.length&&!projectDates.length)projectDates.push(today,addDays(today,30));
   const first=[...timelineTasks.map(t=>t.start),...projectDates,today].sort()[0],last=[...timelineTasks.map(t=>t.end),...projectDates,today].sort().at(-1),start=parseDate(addDays(first,-3)),end=parseDate(addDays(last,10)),days=dayDiff(toIso(start),toIso(end))+1,width=Math.round(25*state.zoom);
+  if (matchMedia("(max-width:620px)").matches) { renderMobileHomeMatrix(tasks, filtered, start, end); return; }
   let html=`<div class="gantt-grid home-grid" data-chart-start="${toIso(start)}" style="--days:${days};--day-width:${width}px"><div class="gantt-corner" style="grid-column:1;grid-row:1 / span 2">PROJECT / TASK</div>`;
   let cursor=new Date(start);while(cursor<=end){const month=cursor.getMonth(),year=cursor.getFullYear(),offset=dayDiff(toIso(start),toIso(cursor));let span=0;while(cursor<=end&&cursor.getMonth()===month){span++;cursor.setDate(cursor.getDate()+1)}html+=`<div class="month" style="grid-column:${offset+2} / span ${span};grid-row:1">${new Intl.DateTimeFormat("en-US",{month:"long",year:"numeric"}).format(new Date(year,month,1))}</div>`}
   for(let i=0;i<days;i++){const d=new Date(start);d.setDate(d.getDate()+i);html+=`<div class="day ${[0,6].includes(d.getDay())?"weekend":""} ${toIso(d)===today?"today":""}" style="grid-column:${i+2};grid-row:2">${d.getDate()}<small>${toIso(d)===today?"TODAY":["S","M","T","W","T","F","S"][d.getDay()]}</small></div>`}
