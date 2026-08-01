@@ -112,3 +112,6 @@
 .matrix-column-head.task:before{content:none}.matrix-task-jump{position:absolute;top:0;left:0;width:100%;min-height:22px;padding:5px 3px 3px;color:#6f7972;font:800 9px DM Sans;letter-spacing:.6px;line-height:1;cursor:pointer}.matrix-task-jump:active{background:#dfe7dc;color:#173b2e}.matrix-column-head.task>i{margin-top:12px}
 .backdrop,.confirm{z-index:200}
 }
+
+/* Keep the calendar dates visible while timeline rows scroll vertically. */
+.gantt-grid>.day{position:sticky;top:0;z-index:6}
