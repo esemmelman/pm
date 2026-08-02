@@ -8,16 +8,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=1.4.6">
+  <link rel="stylesheet" href="styles.css?v=1.4.7">
 </head>
 <body>
   <div class="app">
     <aside class="sidebar" id="sidebar">
-      <button class="brand brand-button" id="ganttHomeButton"><span>⌁</span>Gantt chart <small class="app-version">v1.4.6</small></button>
+      <button class="brand brand-button" id="ganttHomeButton"><span>⌁</span>Gantt chart <small class="app-version">v1.4.7</small></button>
       <div class="side-heading"><span>Projects</span><button id="sideAddProject" title="Add project">＋</button></div>
       <nav id="projectList" class="project-list" aria-label="Projects"></nav>
       <div class="side-empty" id="sideEmpty">No projects yet</div>
-      <div class="storage-note"><span class="storage-status">⌁ Saved on this device</span><span class="app-version">v1.4.6</span></div>
+      <div class="storage-note"><span class="storage-status">⌁ Saved on this device</span><span class="app-version">v1.4.7</span></div>
     </aside>
 
     <main>
@@ -54,7 +54,7 @@
       <header><div><span class="eyebrow" id="projectModalLabel">NEW PROJECT</span><h2 id="projectModalTitle">Create a project</h2></div><button type="button" data-close>×</button></header>
       <input type="hidden" id="projectId">
       <label>Project name<input id="projectNameInput" required maxlength="60" placeholder="e.g. Website redesign"></label>
-      <label>Description<textarea id="projectDescriptionInput" rows="3" maxlength="180" placeholder="What are you working toward?"></textarea></label>
+      <label hidden>Description<textarea id="projectDescriptionInput" rows="3" maxlength="180"></textarea></label>
       <div class="form-grid"><label>Start date<input id="projectStart" type="date"></label><label>End date<input id="projectEnd" type="date"></label></div>
       <label>Color<div class="colors" id="colorPicker"><button type="button" data-color="#dbe88f" class="selected"></button><button type="button" data-color="#ef9b82"></button><button type="button" data-color="#87a9d5"></button><button type="button" data-color="#c6a0d2"></button><button type="button" data-color="#75b39a"></button></div></label>
       <footer><button type="button" class="secondary" data-close>Cancel</button><button class="primary" type="submit">Save project</button></footer>
@@ -68,8 +68,18 @@
       <label>Task name<input id="taskNameInput" required maxlength="80" placeholder="What needs to be done?"></label>
       <div class="form-grid"><label>Status<select id="taskStatus"><option>To do</option><option>In progress</option><option>Review</option><option>Done</option></select></label><label>Owner<input id="taskOwner" maxlength="40" placeholder="Optional"></label></div>
       <div class="form-grid"><label>Start date<input id="taskStart" type="date"></label><label>End date<input id="taskEnd" type="date"></label></div>
-      <label>Notes<textarea id="taskNotes" rows="3" maxlength="300" placeholder="Add details or context…"></textarea></label>
+      <label hidden>Notes<textarea id="taskNotes" rows="3" maxlength="300"></textarea></label>
       <footer><button type="button" class="danger" id="deleteTask" hidden>Delete task</button><span></span><button type="button" class="secondary" data-close>Cancel</button><button class="primary" type="submit">Save task</button></footer>
+    </form>
+  </div>
+
+  <div class="backdrop writing-backdrop" id="writingModal" hidden>
+    <form class="modal writing-modal" id="writingForm">
+      <header><div><span class="eyebrow" id="writingLabel">TASK NOTES</span><h2 id="writingTitle">Write</h2></div><button type="button" data-close>×</button></header>
+      <input type="hidden" id="writingType"><input type="hidden" id="writingProjectId"><input type="hidden" id="writingTaskId">
+      <div class="writing-toolbar" role="toolbar" aria-label="Text formatting"><button type="button" data-format="bold" title="Bold"><b>B</b></button><button type="button" data-format="italic" title="Italic"><i>I</i></button><button type="button" data-format="underline" title="Underline"><u>U</u></button><button type="button" data-format="insertUnorderedList" title="Bulleted list">• List</button><button type="button" data-format="insertOrderedList" title="Numbered list">1. List</button></div>
+      <div class="writing-editor" id="writingEditor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Write notes, ideas, and details…"></div>
+      <footer><span></span><button type="button" class="secondary" data-close>Cancel</button><button class="primary" type="submit">Save writing</button></footer>
     </form>
   </div>
 
@@ -81,6 +91,6 @@
   <div class="confirm" id="migrationModal" hidden><div><h3>Back up and migrate?</h3><p>Your existing projects are stored only in this browser. Northstar will first download a dated JSON backup, then copy the data to Supabase. Keep the downloaded file somewhere safe.</p><footer><button class="secondary" id="migrationLater">Not now</button><button class="primary" id="migrationStart">Back up &amp; migrate</button></footer></div></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="app.js?v=1.4.6"></script>
+  <script src="app.js?v=1.4.7"></script>
 </body>
 </html>
