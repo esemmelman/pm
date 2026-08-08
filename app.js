@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.5.2";
+const APP_VERSION = "1.5.3";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -144,7 +144,7 @@ function renderHomeGantt() {
   let row=3;[...state.projects].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"})).forEach(p=>{const projectTasks=timelineTasks.filter(t=>t.projectId===p.id).sort(compareTaskSchedule);if(filtered&&!projectTasks.length)return;const collapsed=state.homeCollapsedProjects.has(p.id);html+=`<div class="task-label home-project-row" data-home-project="${p.id}" style="grid-column:1;grid-row:${row}"><span class="home-chart-toggle ${collapsed?"collapsed":""}" data-home-toggle="${p.id}">⌄</span><button class="row-edit ${hasWriting(p.description)?"has-writing":""}" data-edit-project="${p.id}" aria-label="Edit ${esc(p.name)}" title="Edit project">✎</button><i style="background:${p.color}"></i><button class="row-title" data-write-project="${p.id}"><b>${esc(p.name)}</b></button></div>`;for(let i=0;i<days;i++){const d=new Date(start);d.setDate(d.getDate()+i);html+=`<div class="gantt-cell project-band ${[0,6].includes(d.getDay())?"weekend":""}" data-project-cell="${p.id}" style="grid-column:${i+2};grid-row:${row}"></div>`}if(p.start&&p.end){const projectOffset=dayDiff(toIso(start),p.start),projectDuration=dayDiff(p.start,p.end)+1;html+=`<button class="bar project-bar" data-project-bar="${p.id}" style="--project-color:${p.color};grid-column:${projectOffset+2} / span ${projectDuration};grid-row:${row}">${esc(p.name)}</button>`}row++;if(!collapsed)projectTasks.forEach(task=>{const offset=dayDiff(toIso(start),task.start),duration=dayDiff(task.start,task.end)+1;html+=`<div class="task-label home-task-row" data-home-task="${task.id}" data-home-parent="${p.id}" style="grid-column:1;grid-row:${row}"><button class="row-edit ${hasWriting(task.notes)?"has-writing":""}" data-edit-task="${task.id}" data-edit-parent="${p.id}" aria-label="Edit ${esc(task.name)}" title="Edit task">✎</button><button class="row-title" data-write-task="${task.id}" data-write-parent="${p.id}"><b>${esc(task.name)}</b></button></div>`;for(let i=0;i<days;i++){const d=new Date(start);d.setDate(d.getDate()+i);html+=`<div class="gantt-cell task-band ${[0,6].includes(d.getDay())?"weekend":""}" style="grid-column:${i+2};grid-row:${row}"></div>`}html+=`<button class="bar ${statusClass(task.status)}" data-home-bar="${task.id}" data-home-parent="${p.id}" style="grid-column:${offset+2} / span ${duration};grid-row:${row}">${esc(task.name)}</button>`;row++})});
   $("homeGantt").innerHTML=html+`</div>`;
   markTruncatedBars();
-  document.querySelectorAll("[data-home-toggle]").forEach(toggle=>toggle.onclick=()=>{const id=toggle.dataset.homeToggle;state.homeCollapsedProjects.has(id)?state.homeCollapsedProjects.delete(id):state.homeCollapsedProjects.add(id);renderHomeGantt();});wireWritingRows();wireHomeDrag(width);scrollTimelineToToday($("homeGantt"));
+  document.querySelectorAll("[data-home-toggle]").forEach(toggle=>toggle.onclick=()=>{const id=toggle.dataset.homeToggle;state.homeCollapsedProjects.has(id)?state.homeCollapsedProjects.delete(id):state.homeCollapsedProjects.add(id);renderHomeGantt();});wireWritingRows();wireHomeDrag(width);expandTodayColumn($("homeGantt"));scrollTimelineToToday($("homeGantt"));
 }
 function renderAgenda(container, tasks, includeProject) {
   if (!container) return;
@@ -168,6 +168,17 @@ function scrollTimelineToToday(wrap) {
     if (!today) return;
     const labelWidth = label?.offsetWidth || 0, dayWidth = today.offsetWidth || 0;
     wrap.scrollLeft = Math.max(0, today.offsetLeft - labelWidth - dayWidth);
+  });
+}
+function expandTodayColumn(wrap) {
+  if (!wrap) return;
+  requestAnimationFrame(() => {
+    const grid = wrap.querySelector(".gantt-grid"), today = grid?.querySelector(".day.today");
+    if (!grid || !today) return;
+    const column = parseInt(today.style.gridColumn, 10), tracks = getComputedStyle(grid).gridTemplateColumns.split(" ");
+    if (!column || tracks.length < column) return;
+    tracks[column - 1] = `${Math.max(48, today.offsetWidth)}px`;
+    grid.style.gridTemplateColumns = tracks.join(" ");
   });
 }
 function setMobileView(section, view) {
@@ -196,7 +207,7 @@ function renderGantt() {
     for (let i=0;i<days;i++) { const d=new Date(start); d.setDate(d.getDate()+i); html += `<div class="gantt-cell ${[0,6].includes(d.getDay()) ? "weekend" : ""}" style="grid-column:${i+2};grid-row:${row}"></div>`; }
     const offset=dayDiff(toIso(start),task.start),duration=dayDiff(task.start,task.end)+1;html += `<button class="bar ${statusClass(task.status)}" data-bar="${task.id}" style="grid-column:${offset+2} / span ${duration};grid-row:${row}">${esc(task.name)}</button>`;
   });
-  $("gantt").innerHTML = html + `</div>`; wireTaskButtons(); wireDrag(width); markTruncatedBars(); scrollTimelineToToday($("gantt"));
+  $("gantt").innerHTML = html + `</div>`; wireTaskButtons(); wireDrag(width); markTruncatedBars(); expandTodayColumn($("gantt")); scrollTimelineToToday($("gantt"));
 }
 function wireEmptyButtons() { document.querySelectorAll(".empty-add").forEach(button => button.onclick = () => openTask()); }
 function wireTaskButtons() { wireWritingRows(); }
