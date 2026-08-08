@@ -162,8 +162,13 @@ function renderAgenda(container, tasks, includeProject) {
 }
 function renderProjectAgenda() { renderAgenda($("projectAgenda"), taskItems(), false); }
 function scrollTimelineToToday(wrap) {
-  if (!wrap || !matchMedia("(max-width:620px)").matches) return;
-  requestAnimationFrame(() => { const today = wrap.querySelector(".day.today"); if (today) wrap.scrollLeft = Math.max(0, today.offsetLeft - 190); });
+  if (!wrap) return;
+  requestAnimationFrame(() => {
+    const today = wrap.querySelector(".day.today"), label = wrap.querySelector(".gantt-corner");
+    if (!today) return;
+    const labelWidth = label?.offsetWidth || 0, dayWidth = today.offsetWidth || 0;
+    wrap.scrollLeft = Math.max(0, today.offsetLeft - labelWidth - dayWidth);
+  });
 }
 function setMobileView(section, view) {
   section.classList.toggle("show-mobile-timeline", view === "timeline");
@@ -211,12 +216,14 @@ function decorateChartRows() {
     const actions = document.createElement("span"); actions.className = "row-actions";
     const edit = row.querySelector(".row-edit");
     if (!taskId) {
+      row.classList.add("tree-level-1");
       actions.append(chartAction("Doc", "document", "Open project document", { openDocument:"project", documentProject:projectId }));
       if (edit) actions.append(edit);
       actions.append(chartAction("＋", "add", "Add task", { addRoot:projectId }));
       actions.append(chartAction("×", "delete", "Delete project", { deleteProjectRow:projectId }));
     } else {
       const task = state.projects.find(item=>item.id===projectId)?.tasks.find(item=>item.id===taskId);
+      row.classList.add(task?.parentId ? "tree-level-3" : "tree-level-2");
       actions.append(chartAction("Doc", "document", "Open node document", { openDocument:"task", documentProject:projectId, documentTask:taskId }));
       if (edit) actions.append(edit);
       if (task && !task.parentId) actions.append(chartAction("＋", "add", "Add subtask", { addChild:taskId, addChildProject:projectId }));
