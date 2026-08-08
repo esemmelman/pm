@@ -40,6 +40,18 @@ function taskItems() {
   return p.tasks.filter(task => (!query || `${task.name} ${task.owner} ${task.notes}`.toLowerCase().includes(query)) && (status === "all" || task.status === status));
 }
 
+function taskDepth(task, tasks = project()?.tasks || []) {
+  return task?.parentId && tasks.some(item => item.id === task.parentId) ? 1 : 0;
+}
+function hierarchicalTasks(tasks) {
+  const sorted = [...tasks].sort(compareTaskSchedule), result = [];
+  sorted.filter(task => !task.parentId || !tasks.some(item => item.id === task.parentId)).forEach(parent => {
+    result.push(parent);
+    sorted.filter(task => task.parentId === parent.id).forEach(child => result.push(child));
+  });
+  return result;
+}
+
 function render() {
   const p = project();
   $("welcome").hidden = !!p; $("projectWorkspace").hidden = !p; $("searchInput").disabled = state.projects.length === 0;
@@ -160,7 +172,7 @@ function setMobileView(section, view) {
 }
 function emptyPanel(title, copy) { return `<div class="empty-panel"><div>⌁</div><h3>${title}</h3><p>${copy}</p><button class="primary empty-add">＋ Add first task</button></div>`; }
 function renderGantt() {
-  const tasks = taskItems().sort(compareTaskSchedule), scheduledTasks=tasks.filter(task=>task.start&&task.end);
+  const tasks = hierarchicalTasks(taskItems()), scheduledTasks=tasks.filter(task=>task.start&&task.end);
   if (!project().tasks.length) { $("gantt").innerHTML = emptyPanel("Your timeline is ready", "Add a task with start and end dates to build your Gantt chart."); wireEmptyButtons(); return; }
   if (!tasks.length) { $("gantt").innerHTML = `<div class="empty-panel"><h3>No matching tasks</h3><p>Try changing your search or filter.</p></div>`; return; }
   const today = todayIso(), minTask = scheduledTasks.map(t => t.start).sort()[0]||today, maxTask = scheduledTasks.map(t => t.end).sort().at(-1)||addDays(today,30);
@@ -174,8 +186,8 @@ function renderGantt() {
     html += `<div class="task-label gantt-drop-label" style="grid-column:1;grid-row:${row}"><span>Drop task on a date</span></div>`;
     for (let i=0;i<days;i++) { const d=new Date(start); d.setDate(d.getDate()+i); html += `<div class="gantt-cell ${[0,6].includes(d.getDay()) ? "weekend" : ""}" style="grid-column:${i+2};grid-row:${row}"></div>`; }
   }
-  scheduledTasks.forEach((task, index) => { const row = index + 3;
-    html += `<div class="task-label" data-task="${task.id}" style="grid-column:1;grid-row:${row}"><button class="row-edit ${hasWriting(task.notes)?"has-writing":""}" data-edit-task="${task.id}" data-edit-parent="${state.activeProjectId}" aria-label="Edit ${esc(task.name)}" title="Edit task">✎</button><button class="row-title" data-write-task="${task.id}" data-write-parent="${state.activeProjectId}"><b>${esc(task.name)}</b></button></div>`;
+  scheduledTasks.forEach((task, index) => { const row = index + 3, depth = taskDepth(task);
+    html += `<div class="task-label node-depth-${depth}" data-task="${task.id}" style="grid-column:1;grid-row:${row}"><button class="row-edit ${hasWriting(task.notes)?"has-writing":""}" data-edit-task="${task.id}" data-edit-parent="${state.activeProjectId}" aria-label="Edit ${esc(task.name)}" title="Edit node">✎</button><button class="row-title" data-write-task="${task.id}" data-write-parent="${state.activeProjectId}" title="Open document"><b>${esc(task.name)}</b></button>${depth===0?`<button class="row-add-child" data-add-child="${task.id}" title="Add subtask" aria-label="Add subtask to ${esc(task.name)}">＋</button>`:""}</div>`;
     for (let i=0;i<days;i++) { const d=new Date(start); d.setDate(d.getDate()+i); html += `<div class="gantt-cell ${[0,6].includes(d.getDay()) ? "weekend" : ""}" style="grid-column:${i+2};grid-row:${row}"></div>`; }
     const offset=dayDiff(toIso(start),task.start),duration=dayDiff(task.start,task.end)+1;html += `<button class="bar ${statusClass(task.status)}" data-bar="${task.id}" style="grid-column:${offset+2} / span ${duration};grid-row:${row}">${esc(task.name)}</button>`;
   });
@@ -188,7 +200,9 @@ function wireWritingRows() {
   document.querySelectorAll("[data-edit-task]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId = button.dataset.editParent; persist(); render(); openTask(button.dataset.editTask); });
   document.querySelectorAll("[data-edit-project]").forEach(button => button.onclick = event => { event.stopPropagation(); openProject(button.dataset.editProject); });
   document.querySelectorAll("[data-write-task]").forEach(button => button.onclick = event => { event.stopPropagation(); openWriting("task", button.dataset.writeParent, button.dataset.writeTask); });
-  document.querySelectorAll("[data-write-project]").forEach(button => button.onclick = event => { event.stopPropagation(); openWriting("project", button.dataset.writeProject); });
+  document.querySelectorAll("[data-write-project]").forEach(button => button.onclick = event => { event.stopPropagation(); openProjectView(button.dataset.writeProject); });
+  document.querySelectorAll("[data-add-root]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId=button.dataset.addRoot; persist(); render(); openTask(); });
+  document.querySelectorAll("[data-add-child]").forEach(button => button.onclick = event => { event.stopPropagation(); openTask(null, null, button.dataset.addChild); });
 }
 function openWriting(type, projectId, taskId = "") {
   const p = state.projects.find(item => item.id === projectId), task = p?.tasks.find(item => item.id === taskId), item = type === "task" ? task : p; if (!item) return;
@@ -238,9 +252,12 @@ function openProject(id = null, selectedDate = null) {
   $("projectModalLabel").textContent = p ? "PROJECT SETTINGS" : "NEW PROJECT"; $("projectModalTitle").textContent = p ? "Edit project" : "Create a project";
   document.querySelectorAll("[data-color]").forEach(b => b.classList.toggle("selected", b.dataset.color === state.color)); $("projectModal").hidden = false; setTimeout(() => $("projectNameInput").focus(), 30);
 }
-function openTask(id = null, selectedDate = null) {
+function openTask(id = null, selectedDate = null, parentId = "") {
   $("sidebar").classList.remove("open");
   const task = project()?.tasks.find(item => item.id === id); $("taskForm").reset(); $("taskId").value = task?.id || ""; $("taskNameInput").value = task?.name || ""; $("taskStatus").value = task?.status || "To do"; $("taskOwner").value = task?.owner || ""; $("taskStart").value = task?.start || selectedDate || ""; $("taskEnd").value = task?.end || selectedDate || ""; $("taskNotes").value = "";
+  const eligibleParents = (project()?.tasks || []).filter(item => item.id !== id && !item.parentId);
+  $("taskParent").innerHTML = `<option value="">Project (top level)</option>${eligibleParents.map(item=>`<option value="${item.id}">${esc(item.name)}</option>`).join("")}`;
+  $("taskParent").value = task?.parentId || parentId || "";
   $("taskModalLabel").textContent = task ? "TASK DETAILS" : "NEW TASK"; $("taskModalTitle").textContent = task ? "Edit task" : "Add a task"; $("deleteTask").hidden = !task; $("taskModal").hidden = false; setTimeout(() => $("taskNameInput").focus(), 30);
 }
 function closeModals() { document.querySelectorAll(".backdrop").forEach(modal => modal.hidden = true); }
@@ -347,7 +364,7 @@ function setup() {
   document.querySelectorAll("[data-format]").forEach(button => button.onclick = () => { $("writingEditor").focus(); document.execCommand(button.dataset.format, false); });
   $("writingForm").onsubmit = event => { event.preventDefault(); const p=state.projects.find(item=>item.id===$("writingProjectId").value); if(!p)return; const html=$("writingEditor").innerHTML.trim(); if($("writingType").value==="task"){const task=p.tasks.find(item=>item.id===$("writingTaskId").value);if(!task)return;task.notes=html;}else p.description=html; persist();closeModals();render();toast("Writing saved"); };
   $("projectForm").onsubmit = event => { event.preventDefault(); const start=$("projectStart").value,end=$("projectEnd").value;if((start&&!end)||(!start&&end)){toast("Add both project dates or leave both blank");return;}if(start&&parseDate(end)<parseDate(start)){toast("End date must be after start date");return;}const id=$("projectId").value, existing=state.projects.find(p=>p.id===id), data={id:id||uid(),name:$("projectNameInput").value.trim(),description:existing?.description||"",color:state.color,start,end,tasks:existing?.tasks||[]}; if(existing) state.projects[state.projects.indexOf(existing)]=data; else {state.projects.push(data);state.activeProjectId=data.id;} persist();closeModals();render();toast(existing?"Project updated":"Project created"); };
-  $("taskForm").onsubmit = event => { event.preventDefault(); const start=$("taskStart").value,end=$("taskEnd").value;if((start&&!end)||(!start&&end)){toast("Add both task dates or leave both blank");return;}if(start&&parseDate(end)<parseDate(start)){toast("End date must be after start date");return;} const id=$("taskId").value, existing=project().tasks.find(t=>t.id===id), data={id:id||uid(),name:$("taskNameInput").value.trim(),status:$("taskStatus").value,owner:$("taskOwner").value.trim(),start,end,notes:existing?.notes||"",sortOrder:existing?.sortOrder??project().tasks.length}; if(existing)project().tasks[project().tasks.indexOf(existing)]=data;else project().tasks.push(data);persist();closeModals();render();toast(existing?"Task updated":"Task added"); };
+  $("taskForm").onsubmit = event => { event.preventDefault(); const start=$("taskStart").value,end=$("taskEnd").value;if((start&&!end)||(!start&&end)){toast("Add both task dates or leave both blank");return;}if(start&&parseDate(end)<parseDate(start)){toast("End date must be after start date");return;} const id=$("taskId").value, existing=project().tasks.find(t=>t.id===id), data={id:id||uid(),name:$("taskNameInput").value.trim(),status:$("taskStatus").value,owner:$("taskOwner").value.trim(),start,end,notes:existing?.notes||"",parentId:$("taskParent").value||null,sortOrder:existing?.sortOrder??project().tasks.length}; if(existing)project().tasks[project().tasks.indexOf(existing)]=data;else project().tasks.push(data);persist();closeModals();render();toast(existing?"Node updated":"Node added"); };
   $("deleteTask").onclick = () => { const task=project().tasks.find(t=>t.id===$("taskId").value); closeModals(); askDelete("task",task); };
   $("confirmCancel").onclick = () => { $("confirm").hidden=true;state.pendingDelete=null; };
   $("confirmDelete").onclick = () => { const {type,item}=state.pendingDelete;if(type==="project"){state.projects=state.projects.filter(p=>p.id!==item.id);state.activeProjectId=state.projects[0]?.id??null;}else project().tasks=project().tasks.filter(t=>t.id!==item.id);persist();$("confirm").hidden=true;state.pendingDelete=null;render();toast(`${type[0].toUpperCase()+type.slice(1)} deleted`); };
@@ -355,6 +372,7 @@ function setup() {
   $("zoomIn").onclick=()=>{state.zoom=Math.min(1.8,state.zoom+.2);$("zoomLabel").textContent=state.zoom>1.3?"Day":"Week";renderGantt();};$("zoomOut").onclick=()=>{state.zoom=Math.max(.6,state.zoom-.2);$("zoomLabel").textContent=state.zoom<.8?"Month":"Week";renderGantt();};
   $("homeZoomIn").onclick=()=>{state.zoom=Math.min(1.8,state.zoom+.2);$("homeZoomLabel").textContent=state.zoom>1.3?"Day":"Week";renderHomeGantt();};$("homeZoomOut").onclick=()=>{state.zoom=Math.max(.6,state.zoom-.2);$("homeZoomLabel").textContent=state.zoom<.8?"Month":"Week";renderHomeGantt();};
   $("homeFilterButton").onclick=()=>$("homeFilters").hidden=!$("homeFilters").hidden;$("homeStatusFilter").onchange=renderHomeGantt;$("homeDateFilter").onchange=renderHomeGantt;$("clearHomeFilter").onclick=clearHomeFilters;
+  $("chartAddProject").onclick=()=>openProject();
   $("menuButton").onclick=()=>$("sidebar").classList.toggle("open");
   document.querySelectorAll(".mobile-view-switch").forEach(switcher => switcher.onclick = event => { const button = event.target.closest("[data-mobile-view]"); if (button) setMobileView(switcher.closest("section"), button.dataset.mobileView); });
   document.addEventListener("click", event => { const cell = event.target.closest(".gantt-cell"); if (cell) createTaskFromCell(cell); });
