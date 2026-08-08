@@ -196,13 +196,43 @@ function renderGantt() {
 function wireEmptyButtons() { document.querySelectorAll(".empty-add").forEach(button => button.onclick = () => openTask()); }
 function wireTaskButtons() { wireWritingRows(); }
 
+function chartAction(label, className, title, data = {}) {
+  const button = document.createElement("button");
+  button.type = "button"; button.className = `row-action ${className}`; button.textContent = label; button.title = title; button.setAttribute("aria-label", title);
+  Object.entries(data).forEach(([key,value]) => button.dataset[key] = value);
+  return button;
+}
+function decorateChartRows() {
+  document.querySelectorAll(".task-label").forEach(row => {
+    if (row.querySelector(".row-actions")) return;
+    const projectId = row.dataset.homeProject || row.dataset.homeParent || state.activeProjectId;
+    const taskId = row.dataset.homeTask || row.dataset.task;
+    if (!projectId || (!taskId && !row.dataset.homeProject)) return;
+    const actions = document.createElement("span"); actions.className = "row-actions";
+    if (!taskId) {
+      actions.append(chartAction("＋", "add", "Add task", { addRoot:projectId }));
+      actions.append(chartAction("Doc", "document", "Open project document", { openDocument:"project", documentProject:projectId }));
+      actions.append(chartAction("×", "delete", "Delete project", { deleteProjectRow:projectId }));
+    } else {
+      const task = state.projects.find(item=>item.id===projectId)?.tasks.find(item=>item.id===taskId);
+      if (task && !task.parentId) actions.append(chartAction("＋", "add", "Add subtask", { addChild:taskId, addChildProject:projectId }));
+      actions.append(chartAction("Doc", "document", "Open node document", { openDocument:"task", documentProject:projectId, documentTask:taskId }));
+      actions.append(chartAction("×", "delete", "Delete node", { deleteTaskRow:taskId, deleteParent:projectId }));
+    }
+    row.append(actions);
+  });
+}
 function wireWritingRows() {
+  decorateChartRows();
   document.querySelectorAll("[data-edit-task]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId = button.dataset.editParent; persist(); render(); openTask(button.dataset.editTask); });
   document.querySelectorAll("[data-edit-project]").forEach(button => button.onclick = event => { event.stopPropagation(); openProject(button.dataset.editProject); });
   document.querySelectorAll("[data-write-task]").forEach(button => button.onclick = event => { event.stopPropagation(); openWriting("task", button.dataset.writeParent, button.dataset.writeTask); });
   document.querySelectorAll("[data-write-project]").forEach(button => button.onclick = event => { event.stopPropagation(); openProjectView(button.dataset.writeProject); });
   document.querySelectorAll("[data-add-root]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId=button.dataset.addRoot; persist(); render(); openTask(); });
-  document.querySelectorAll("[data-add-child]").forEach(button => button.onclick = event => { event.stopPropagation(); openTask(null, null, button.dataset.addChild); });
+  document.querySelectorAll("[data-add-child]").forEach(button => button.onclick = event => { event.stopPropagation(); if(button.dataset.addChildProject)state.activeProjectId=button.dataset.addChildProject; openTask(null, null, button.dataset.addChild); });
+  document.querySelectorAll("[data-open-document]").forEach(button => button.onclick = event => { event.stopPropagation(); openWriting(button.dataset.openDocument, button.dataset.documentProject, button.dataset.documentTask || ""); });
+  document.querySelectorAll("[data-delete-project-row]").forEach(button => button.onclick = event => { event.stopPropagation(); const item=state.projects.find(p=>p.id===button.dataset.deleteProjectRow); if(item)askDelete("project",item); });
+  document.querySelectorAll("[data-delete-task-row]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId=button.dataset.deleteParent; const item=project()?.tasks.find(t=>t.id===button.dataset.deleteTaskRow); if(item)askDelete("task",item); });
 }
 function openWriting(type, projectId, taskId = "") {
   const p = state.projects.find(item => item.id === projectId), task = p?.tasks.find(item => item.id === taskId), item = type === "task" ? task : p; if (!item) return;
