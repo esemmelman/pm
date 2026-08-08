@@ -209,14 +209,17 @@ function decorateChartRows() {
     const taskId = row.dataset.homeTask || row.dataset.task;
     if (!projectId || (!taskId && !row.dataset.homeProject)) return;
     const actions = document.createElement("span"); actions.className = "row-actions";
+    const edit = row.querySelector(".row-edit");
     if (!taskId) {
-      actions.append(chartAction("＋", "add", "Add task", { addRoot:projectId }));
       actions.append(chartAction("Doc", "document", "Open project document", { openDocument:"project", documentProject:projectId }));
+      if (edit) actions.append(edit);
+      actions.append(chartAction("＋", "add", "Add task", { addRoot:projectId }));
       actions.append(chartAction("×", "delete", "Delete project", { deleteProjectRow:projectId }));
     } else {
       const task = state.projects.find(item=>item.id===projectId)?.tasks.find(item=>item.id===taskId);
-      if (task && !task.parentId) actions.append(chartAction("＋", "add", "Add subtask", { addChild:taskId, addChildProject:projectId }));
       actions.append(chartAction("Doc", "document", "Open node document", { openDocument:"task", documentProject:projectId, documentTask:taskId }));
+      if (edit) actions.append(edit);
+      if (task && !task.parentId) actions.append(chartAction("＋", "add", "Add subtask", { addChild:taskId, addChildProject:projectId }));
       actions.append(chartAction("×", "delete", "Delete node", { deleteTaskRow:taskId, deleteParent:projectId }));
     }
     row.append(actions);
