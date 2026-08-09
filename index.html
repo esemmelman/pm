@@ -8,23 +8,23 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=1.5.5">
+  <link rel="stylesheet" href="styles.css?v=1.5.6">
 </head>
 <body>
   <div class="app">
     <aside class="sidebar" id="sidebar">
-      <button class="brand brand-button" id="ganttHomeButton"><span>⌁</span>Gantt chart <small class="app-version">v1.5.5</small></button>
+      <button class="brand brand-button" id="ganttHomeButton"><span>⌁</span>Gantt chart <small class="app-version">v1.5.6</small></button>
       <div class="side-heading"><span>Projects</span><button id="sideAddProject" title="Add project">＋</button></div>
       <nav id="projectList" class="project-list" aria-label="Projects"></nav>
       <div class="side-empty" id="sideEmpty">No projects yet</div>
-      <div class="storage-note"><span class="storage-status">⌁ Saved on this device</span><span class="app-version">v1.5.5</span></div>
+      <div class="storage-note"><span class="storage-status">⌁ Saved on this device</span><span class="app-version">v1.5.6</span></div>
     </aside>
 
     <main>
       <header class="topbar">
         <button class="icon-button mobile-menu" id="menuButton" aria-label="Open menu" hidden>☰</button>
         <label class="search">⌕<input id="searchInput" type="search" placeholder="Search tasks…" disabled><kbd>⌘ K</kbd></label>
-        <div class="account-controls"><span class="app-version top-version">v1.5.5</span><span id="syncStatus">Saved on this device</span><button class="secondary" id="connectButton">Connect</button><button class="secondary" id="signOutButton" hidden>Sign out</button></div>
+        <div class="account-controls"><span class="app-version top-version">v1.5.6</span><span id="syncStatus">Saved on this device</span><button class="secondary" id="connectButton">Connect</button><button class="secondary" id="signOutButton" hidden>Sign out</button></div>
       </header>
 
       <div class="content">
@@ -92,6 +92,6 @@
   <div class="confirm" id="migrationModal" hidden><div><h3>Back up and migrate?</h3><p>Your existing projects are stored only in this browser. Northstar will first download a dated JSON backup, then copy the data to Supabase. Keep the downloaded file somewhere safe.</p><footer><button class="secondary" id="migrationLater">Not now</button><button class="primary" id="migrationStart">Back up &amp; migrate</button></footer></div></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="app.js?v=1.5.5"></script>
+  <script src="app.js?v=1.5.6"></script>
 </body>
 </html>
