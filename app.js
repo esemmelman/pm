@@ -1,10 +1,10 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.5.7";
+const APP_VERSION = "1.5.8";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
 const STATUS = ["To do", "In progress", "Review", "Done"];
-const state = { projects: [], activeProjectId: null, view: "gantt", zoom: 1, color: "#dbe88f", pendingDelete: null, collapsedProjects: new Set(), homeCollapsedProjects: new Set(), mobileExpandedProjectId: null };
+const state = { projects: [], activeProjectId: null, view: "gantt", zoom: 1, color: "#dbe88f", pendingDelete: null, collapsedProjects: new Set(), homeCollapsedProjects: new Set(), collapsedTasks: new Set(), mobileExpandedProjectId: null };
 const $ = id => document.getElementById(id);
 const esc = value => { const el = document.createElement("span"); el.textContent = value ?? ""; return el.innerHTML; };
 const plainText = value => { const el = document.createElement("div"); el.innerHTML = value || ""; return el.textContent || ""; };
@@ -41,26 +41,32 @@ function taskItems() {
 }
 
 function taskDepth(task, tasks = project()?.tasks || []) {
-  return task?.parentId && tasks.some(item => item.id === task.parentId) ? 1 : 0;
+  let depth = 0, current = task, visited = new Set();
+  while (current?.parentId && depth < 3 && !visited.has(current.id)) { visited.add(current.id); current = tasks.find(item => item.id === current.parentId); if (current) depth++; else break; }
+  return depth;
 }
-function hierarchicalTasks(tasks) {
-  const sorted = [...tasks].sort(compareTaskSchedule), result = [];
-  sorted.filter(task => !task.parentId || !tasks.some(item => item.id === task.parentId)).forEach(parent => {
-    result.push(parent);
-    sorted.filter(task => task.parentId === parent.id).forEach(child => result.push(child));
-  });
+function hierarchicalTasks(tasks, honorCollapsed = true) {
+  const sorted = [...tasks].sort(compareTaskSchedule), result = [], visit = task => {
+    result.push(task);
+    if (honorCollapsed && state.collapsedTasks.has(task.id)) return;
+    sorted.filter(child => child.parentId === task.id).forEach(visit);
+  };
+  sorted.filter(task => !task.parentId || !tasks.some(item => item.id === task.parentId)).forEach(visit);
   return result;
 }
+function taskHasAncestor(task, ancestorId, tasks) { let current=task; while(current?.parentId){if(current.parentId===ancestorId)return true;current=tasks.find(item=>item.id===current.parentId);}return false; }
 function resetToHomeView() {
   state.activeProjectId = null;
   state.homeCollapsedProjects.clear();
+  state.collapsedTasks.clear();
   $("searchInput").value = "";
   $("homeStatusFilter").value = "all";
   $("homeDateFilter").value = "all";
 }
 function toggleAllNodes() {
-  const allCollapsed = state.projects.length > 0 && state.projects.every(item => state.homeCollapsedProjects.has(item.id));
+  const parents=state.projects.flatMap(p=>p.tasks.filter(task=>p.tasks.some(child=>child.parentId===task.id))), allProjectsCollapsed=state.projects.length>0&&state.projects.every(item=>state.homeCollapsedProjects.has(item.id)), allTasksCollapsed=parents.every(item=>state.collapsedTasks.has(item.id)), allCollapsed=allProjectsCollapsed&&allTasksCollapsed;
   state.homeCollapsedProjects = allCollapsed ? new Set() : new Set(state.projects.map(item => item.id));
+  state.collapsedTasks = allCollapsed ? new Set() : new Set(parents.map(item=>item.id));
   renderHomeGantt();
 }
 
@@ -136,7 +142,8 @@ function scrollMobileTaskDateToThirdRow(taskId) {
   wrap.scrollTo({ top:Math.max(0, target.offsetTop - headerHeight - rowHeight * 2), behavior:"smooth" });
 }
 function renderHomeGantt() {
-  $("toggleAllNodes").textContent = state.projects.length > 0 && state.projects.every(item => state.homeCollapsedProjects.has(item.id)) ? "Expand all" : "Collapse all";
+  const collapsibleTasks=state.projects.flatMap(p=>p.tasks.filter(task=>p.tasks.some(child=>child.parentId===task.id)));
+  $("toggleAllNodes").textContent = state.projects.length > 0 && state.projects.every(item => state.homeCollapsedProjects.has(item.id)) && collapsibleTasks.every(item=>state.collapsedTasks.has(item.id)) ? "Expand all" : "Collapse all";
   const all = allTasks(), statusFilter = $("homeStatusFilter").value, dateFilter = $("homeDateFilter").value, query = $("searchInput").value.trim().toLowerCase(), today = todayIso(), tomorrow = addDays(today, 1);
   const tasks = all.filter(task => { const statusMatch = statusFilter === "all" || task.status === statusFilter; const dateMatch = dateFilter === "all" || (dateFilter === "today" ? task.start <= today && task.end >= today : task.start <= tomorrow && task.end >= today); const searchMatch = !query || `${task.name} ${task.owner} ${plainText(task.notes)} ${task.projectName}`.toLowerCase().includes(query); return statusMatch && dateMatch && searchMatch; });
   renderAgenda($("homeAgenda"), tasks, true);
@@ -247,10 +254,12 @@ function decorateChartRows() {
       actions.append(chartAction("×", "delete", "Delete project", { deleteProjectRow:projectId }));
     } else {
       const task = state.projects.find(item=>item.id===projectId)?.tasks.find(item=>item.id===taskId);
-      row.classList.add(task?.parentId ? "tree-level-3" : "tree-level-2");
+      const depth=taskDepth(task,state.projects.find(item=>item.id===projectId)?.tasks||[]), hasChildren=state.projects.find(item=>item.id===projectId)?.tasks.some(item=>item.parentId===taskId);
+      row.classList.add(`tree-level-${depth+2}`);
+      if(hasChildren){const toggle=chartAction(state.collapsedTasks.has(taskId)?"›":"⌄","node-toggle",state.collapsedTasks.has(taskId)?"Expand children":"Collapse children",{toggleTask:taskId,toggleHome:row.dataset.homeTask?"1":""});row.insertBefore(toggle,row.querySelector(".row-title"));}
       actions.append(chartAction("Doc", "document", "Open node document", { openDocument:"task", documentProject:projectId, documentTask:taskId }));
       if (edit) actions.append(edit);
-      if (task && !task.parentId) actions.append(chartAction("＋", "add", "Add subtask", { addChild:taskId, addChildProject:projectId }));
+      if (task && depth < 2) actions.append(chartAction("＋", "add", "Add child", { addChild:taskId, addChildProject:projectId }));
       actions.append(chartAction("×", "delete", "Delete node", { deleteTaskRow:taskId, deleteParent:projectId }));
     }
     row.append(actions);
@@ -267,6 +276,7 @@ function wireWritingRows() {
   document.querySelectorAll("[data-open-document]").forEach(button => button.onclick = event => { event.stopPropagation(); openWriting(button.dataset.openDocument, button.dataset.documentProject, button.dataset.documentTask || ""); });
   document.querySelectorAll("[data-delete-project-row]").forEach(button => button.onclick = event => { event.stopPropagation(); const item=state.projects.find(p=>p.id===button.dataset.deleteProjectRow); if(item)askDelete("project",item); });
   document.querySelectorAll("[data-delete-task-row]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId=button.dataset.deleteParent; const item=project()?.tasks.find(t=>t.id===button.dataset.deleteTaskRow); if(item)askDelete("task",item); });
+  document.querySelectorAll("[data-toggle-task]").forEach(button=>button.onclick=event=>{event.stopPropagation();const id=button.dataset.toggleTask;state.collapsedTasks.has(id)?state.collapsedTasks.delete(id):state.collapsedTasks.add(id);button.dataset.toggleHome?renderHomeGantt():renderGantt();});
 }
 function openWriting(type, projectId, taskId = "") {
   const p = state.projects.find(item => item.id === projectId), task = p?.tasks.find(item => item.id === taskId), item = type === "task" ? task : p; if (!item) return;
@@ -319,7 +329,7 @@ function openProject(id = null, selectedDate = null) {
 function openTask(id = null, selectedDate = null, parentId = "") {
   $("sidebar").classList.remove("open");
   const task = project()?.tasks.find(item => item.id === id); $("taskForm").reset(); $("taskId").value = task?.id || ""; $("taskNameInput").value = task?.name || ""; $("taskStatus").value = task?.status || "To do"; $("taskOwner").value = task?.owner || ""; $("taskStart").value = task?.start || selectedDate || ""; $("taskEnd").value = task?.end || selectedDate || ""; $("taskNotes").value = "";
-  const eligibleParents = (project()?.tasks || []).filter(item => item.id !== id && !item.parentId);
+  const allProjectTasks=project()?.tasks||[], eligibleParents = allProjectTasks.filter(item => item.id !== id && taskDepth(item,allProjectTasks)<2 && !taskHasAncestor(item,id,allProjectTasks));
   $("taskParent").innerHTML = `<option value="">Project (top level)</option>${eligibleParents.map(item=>`<option value="${item.id}">${esc(item.name)}</option>`).join("")}`;
   $("taskParent").value = task?.parentId || parentId || "";
   $("taskModalLabel").textContent = task ? "TASK DETAILS" : "NEW TASK"; $("taskModalTitle").textContent = task ? "Edit task" : "Add a task"; $("deleteTask").hidden = !task; $("taskModal").hidden = false; setTimeout(() => $("taskNameInput").focus(), 30);
