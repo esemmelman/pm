@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.5.9";
+const APP_VERSION = "1.6.0";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -18,14 +18,24 @@ const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${Stri
 const taskTooltip = task => { if (!task.start) return `${task.name}\nNot scheduled`; const distance = dayDiff(todayIso(), task.start); const timing = distance === 0 ? "Starts today" : distance > 0 ? `Starts in ${distance} day${distance === 1 ? "" : "s"}` : `Started ${Math.abs(distance)} day${Math.abs(distance) === 1 ? "" : "s"} ago`; return `${task.name}\n${timing}`; };
 const compareTaskSchedule = (a, b) => { if (!a.start && !b.start) return (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name); if (!a.start) return 1; if (!b.start) return -1; return a.start.localeCompare(b.start) || a.name.localeCompare(b.name); };
 const project = () => state.projects.find(item => item.id === state.activeProjectId);
+const PARENT_META = /<!--northstar-parent:([^>]*)-->/g;
+function decodeTaskHierarchy(task, fallbackParentId = null) {
+  const notes = task.notes || "", match = [...notes.matchAll(PARENT_META)][0]; let encodedParent = null;
+  if (match?.[1]) { try { encodedParent = decodeURIComponent(match[1]); } catch { encodedParent = match[1]; } }
+  return { ...task, parentId:task.parentId || encodedParent || fallbackParentId || null, notes:notes.replace(PARENT_META, "").trim() };
+}
+function encodeTaskHierarchy(task) {
+  const notes=(task.notes||"").replace(PARENT_META, "").trim(), marker=task.parentId?`<!--northstar-parent:${encodeURIComponent(task.parentId)}-->`:"";
+  return { ...task, notes:`${notes}${marker}` };
+}
 
 function load() {
-  try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)); if (saved?.projects) { state.projects = saved.projects; state.activeProjectId = saved.activeProjectId; } } catch {}
+  try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)); if (saved?.projects) { state.projects = saved.projects.map(p=>({...p,tasks:(p.tasks||[]).map(task=>decodeTaskHierarchy(task))})); state.activeProjectId = saved.activeProjectId; } } catch {}
   state.activeProjectId = null;
   state.collapsedProjects = new Set(state.projects.map(p => p.id));
   state.homeCollapsedProjects.clear();
 }
-function workspacePayload() { return { projects: state.projects, activeProjectId: state.activeProjectId }; }
+function workspacePayload() { return { projects: state.projects.map(p=>({...p,tasks:p.tasks.map(encodeTaskHierarchy)})), activeProjectId: state.activeProjectId }; }
 function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify(workspacePayload())); scheduleRemoteSync(); }
 function setSyncStatus(message) { const el = $("syncStatus"); if (el) el.textContent = message; const note = document.querySelector(".storage-note"), status = note?.querySelector(".storage-status"); if (status) status.textContent = message; if (note) note.classList.toggle("synced", message === "Synced with Supabase"); }
 function scheduleRemoteSync() { if (!currentUser || !remoteReady) return; setSyncStatus("Saving…"); clearTimeout(syncTimer); syncTimer = setTimeout(syncRemote, 350); }
@@ -398,8 +408,9 @@ async function loadRemoteWorkspace() {
   const error = projectsResult.error || tasksResult.error;
   if (error) { setSyncStatus("Supabase setup needed"); console.error(error); toast("Run supabase-schema.sql first"); return; }
   if (projectsResult.data.length) {
-    state.projects = projectsResult.data.map(p => ({ id:p.id, name:p.name, description:p.description, color:p.color, start:p.start_date || "", end:p.end_date || "", tasks:tasksResult.data.filter(t => t.project_id === p.id).map(t => ({ id:t.id, name:t.name, status:t.status, owner:t.owner, start:t.start_date || "", end:t.end_date || "", notes:t.notes, sortOrder:t.sort_order })) }));
-    state.activeProjectId = null; localStorage.setItem(STORAGE_KEY, JSON.stringify(workspacePayload())); remoteReady = true; setSyncStatus("Synced with Supabase"); render();
+    const localParents=new Map(state.projects.flatMap(p=>p.tasks.filter(t=>t.parentId).map(t=>[t.id,t.parentId]))); let recoveredLocalHierarchy=false;
+    state.projects = projectsResult.data.map(p => ({ id:p.id, name:p.name, description:p.description, color:p.color, start:p.start_date || "", end:p.end_date || "", tasks:tasksResult.data.filter(t => t.project_id === p.id).map(t => {const raw={id:t.id,name:t.name,status:t.status,owner:t.owner,start:t.start_date||"",end:t.end_date||"",notes:t.notes,parentId:t.parent_id||null,sortOrder:t.sort_order}, decoded=decodeTaskHierarchy(raw,localParents.get(t.id));if(!raw.parentId&&!raw.notes?.match(PARENT_META)&&localParents.has(t.id))recoveredLocalHierarchy=true;return decoded;}) }));
+    state.activeProjectId = null; localStorage.setItem(STORAGE_KEY, JSON.stringify(workspacePayload())); remoteReady = true; setSyncStatus("Synced with Supabase"); render(); if(recoveredLocalHierarchy)scheduleRemoteSync();
   } else if (state.projects.length) {
     setSyncStatus("Local data awaiting backup"); $("migrationModal").hidden = false;
   } else { remoteReady = true; setSyncStatus("Synced with Supabase"); }

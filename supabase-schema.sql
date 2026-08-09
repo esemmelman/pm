@@ -19,6 +19,7 @@ create table if not exists public.northstar_tasks (
 
 alter table public.northstar_tasks alter column start_date drop not null;
 alter table public.northstar_tasks alter column end_date drop not null;
+alter table public.northstar_tasks add column if not exists parent_id text;
 alter table public.northstar_tasks drop constraint if exists northstar_tasks_check;
 alter table public.northstar_tasks drop constraint if exists northstar_tasks_date_pair_check;
 alter table public.northstar_tasks add constraint northstar_tasks_date_pair_check
@@ -49,8 +50,8 @@ begin
     insert into northstar_projects (id,user_id,name,description,color,start_date,end_date,sort_order)
     values (p->>'id',uid,p->>'name',coalesce(p->>'description',''),coalesce(p->>'color','#dbe88f'),nullif(p->>'start','')::date,nullif(p->>'end','')::date,coalesce((p->>'sort_order')::int,0));
     for t in select * from jsonb_array_elements(coalesce(p->'tasks', '[]'::jsonb)) loop
-      insert into northstar_tasks (id,user_id,project_id,name,status,owner,start_date,end_date,notes,sort_order)
-      values (t->>'id',uid,p->>'id',t->>'name',t->>'status',coalesce(t->>'owner',''),nullif(t->>'start','')::date,nullif(t->>'end','')::date,coalesce(t->>'notes',''),coalesce((t->>'sortOrder')::int,(t->>'sort_order')::int,0));
+      insert into northstar_tasks (id,user_id,project_id,name,status,owner,start_date,end_date,notes,parent_id,sort_order)
+      values (t->>'id',uid,p->>'id',t->>'name',t->>'status',coalesce(t->>'owner',''),nullif(t->>'start','')::date,nullif(t->>'end','')::date,coalesce(t->>'notes',''),nullif(t->>'parentId',''),coalesce((t->>'sortOrder')::int,(t->>'sort_order')::int,0));
     end loop;
   end loop;
   if backup_time is not null then
