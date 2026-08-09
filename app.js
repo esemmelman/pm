@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.6.7";
+const APP_VERSION = "1.6.8";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -288,8 +288,8 @@ function wireWritingRows() {
   decorateChartRows();
   document.querySelectorAll(".task-label[data-home-task],.task-label[data-task]").forEach(row=>{
     row.draggable=true;
-    row.ondragstart=event=>{const taskId=row.dataset.homeTask||row.dataset.task,projectId=row.dataset.homeParent||state.activeProjectId;if(!taskId||!projectId){event.preventDefault();return;}event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("application/x-northstar-task",JSON.stringify({projectId,taskId}));event.dataTransfer.setData("text/plain",taskId);row.classList.add("dragging-node");};
-    row.ondragend=()=>{row.classList.remove("dragging-node");document.querySelectorAll(".task-drop-target").forEach(cell=>cell.classList.remove("task-drop-target"));};
+    row.ondragstart=event=>{const taskId=row.dataset.homeTask||row.dataset.task,projectId=row.dataset.homeParent||state.activeProjectId;if(!taskId||!projectId){event.preventDefault();return;}event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("application/x-northstar-task",JSON.stringify({projectId,taskId}));event.dataTransfer.setData("text/plain",taskId);const blank=document.createElement("canvas");blank.width=blank.height=1;event.dataTransfer.setDragImage(blank,0,0);row.classList.add("dragging-node");};
+    row.ondragend=()=>{row.classList.remove("dragging-node");document.querySelectorAll(".task-drop-target").forEach(cell=>cell.classList.remove("task-drop-target"));document.querySelector(".drag-date-preview")?.remove();};
   });
   document.querySelectorAll("[data-edit-task]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId = button.dataset.editParent; persist(); render(); openTask(button.dataset.editTask); });
   document.querySelectorAll("[data-edit-project]").forEach(button => button.onclick = event => { event.stopPropagation(); openProject(button.dataset.editProject); });
@@ -483,6 +483,8 @@ function setup() {
     event.preventDefault();event.dataTransfer.dropEffect="move";
     document.querySelectorAll(".task-drop-target").forEach(target => { if(target!==cell)target.classList.remove("task-drop-target"); });
     cell.classList.add("task-drop-target");
+    const grid=cell.closest(".gantt-grid"),column=parseInt(cell.style.gridColumn,10);
+    if(grid?.dataset.chartStart&&Number.isFinite(column)){const date=addDays(grid.dataset.chartStart,column-2);let preview=document.querySelector(".drag-date-preview");if(!preview){preview=document.createElement("div");preview.className="drag-date-preview";document.body.append(preview);}preview.textContent=formatDate(date);preview.style.left=`${event.clientX+14}px`;preview.style.top=`${event.clientY+14}px`;}
   });
   document.addEventListener("drop", event => {
     const cell = event.target.closest(".gantt-cell");
@@ -496,6 +498,7 @@ function setup() {
     if(!task||!grid?.dataset.chartStart||!Number.isFinite(column))return;
     const droppedDate=addDays(grid.dataset.chartStart,column-2),duration=task.start&&task.end?dayDiff(task.start,task.end)+1:1;
     task.start=droppedDate;task.end=addDays(droppedDate,duration-1);
+    document.querySelector(".drag-date-preview")?.remove();
     resetToHomeView();persist();render();toast(`${task.name} scheduled for ${formatDate(droppedDate)}`);
   });
   document.addEventListener("mouseover", event => { const chartTask=event.target.closest(".bar[data-bar],.bar[data-home-bar]");if(chartTask&&!chartTask.contains(event.relatedTarget)){showChartTaskTooltip(chartTask);return;}const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){showSideTaskTooltip(sideTask);return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))showCellTooltip(cell); });
