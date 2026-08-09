@@ -155,4 +155,5 @@ main{margin-left:0!important;width:100%!important}
 @media(max-width:620px){.level-controls{display:none}}
 .task-label[draggable="true"] .row-title{cursor:grab}.task-label.dragging-node{opacity:.55;background:#e8efe8!important}.task-label.dragging-node .row-title{cursor:grabbing}
 .drag-date-preview{position:fixed;z-index:1000;pointer-events:none;padding:6px 9px;border-radius:6px;background:#173b2e;color:#fff;font:700 12px "DM Sans",sans-serif;box-shadow:0 4px 12px rgba(23,59,46,.25);white-space:nowrap}
+.node-start-countdown{flex:0 0 auto;color:#6f7972;font:700 10px "DM Sans",sans-serif;white-space:nowrap}
 @media(max-width:620px){.content{padding-left:10px;padding-right:10px}.gantt-grid,.home-grid{grid-template-columns:280px repeat(var(--days),var(--day-width))}.task-label.node-depth-1{padding-left:25px!important}}

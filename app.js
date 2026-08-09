@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.6.8";
+const APP_VERSION = "1.6.9";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -265,7 +265,9 @@ function decorateChartRows() {
     if (!projectId || (!taskId && !row.dataset.homeProject)) return;
     const actions = document.createElement("span"); actions.className = "row-actions";
     const edit = row.querySelector(".row-edit");
+    let scheduledItem;
     if (!taskId) {
+      scheduledItem = state.projects.find(item=>item.id===projectId);
       row.classList.add("tree-level-1");
       actions.append(chartAction("Doc", "document", "Open project document", { openDocument:"project", documentProject:projectId }));
       if (edit) actions.append(edit);
@@ -273,6 +275,7 @@ function decorateChartRows() {
       actions.append(chartAction("×", "delete", "Delete project", { deleteProjectRow:projectId }));
     } else {
       const task = state.projects.find(item=>item.id===projectId)?.tasks.find(item=>item.id===taskId);
+      scheduledItem = task;
       const depth=taskDepth(task,state.projects.find(item=>item.id===projectId)?.tasks||[]), hasChildren=state.projects.find(item=>item.id===projectId)?.tasks.some(item=>item.parentId===taskId);
       row.classList.add(`tree-level-${depth+2}`);
       if(hasChildren){const toggle=chartAction(state.collapsedTasks.has(taskId)?"›":"⌄","node-toggle",state.collapsedTasks.has(taskId)?"Expand children":"Collapse children",{toggleTask:taskId,toggleHome:row.dataset.homeTask?"1":""});row.insertBefore(toggle,row.querySelector(".row-title"));}
@@ -281,6 +284,7 @@ function decorateChartRows() {
       if (task && depth < 2) actions.append(chartAction("＋", "add", "Add child", { addChild:taskId, addChildProject:projectId }));
       actions.append(chartAction("×", "delete", "Delete node", { deleteTaskRow:taskId, deleteParent:projectId }));
     }
+    if(scheduledItem?.start){const distance=dayDiff(todayIso(),scheduledItem.start),countdown=document.createElement("span");countdown.className="node-start-countdown";countdown.textContent=`${distance<0?"−":""}${Math.abs(distance)}d`;countdown.title=distance===0?"Starts today":distance>0?`Starts in ${distance} day${distance===1?"":"s"}`:`Started ${Math.abs(distance)} day${Math.abs(distance)===1?"":"s"} ago`;row.insertBefore(countdown,row.querySelector(".row-title"));}
     row.append(actions);
   });
 }
