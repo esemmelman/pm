@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.7.0";
+const APP_VERSION = "1.7.1";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -284,7 +284,7 @@ function decorateChartRows() {
       if (task && depth < 2) actions.append(chartAction("＋", "add", "Add child", { addChild:taskId, addChildProject:projectId }));
       actions.append(chartAction("×", "delete", "Delete node", { deleteTaskRow:taskId, deleteParent:projectId }));
     }
-    if(scheduledItem?.start){const distance=dayDiff(todayIso(),scheduledItem.start),countdown=document.createElement("span");countdown.className="node-start-countdown";countdown.textContent=`${distance<0?"−":""}${Math.abs(distance)}d`;countdown.title=distance===0?"Starts today":distance>0?`Starts in ${distance} day${distance===1?"":"s"}`:`Started ${Math.abs(distance)} day${Math.abs(distance)===1?"":"s"} ago`;row.insertBefore(countdown,row.querySelector(".row-title"));}
+    if(scheduledItem?.start){const distance=dayDiff(todayIso(),scheduledItem.start),countdown=document.createElement("span");countdown.className="node-start-countdown";countdown.textContent=`${distance<0?"−":""}${Math.abs(distance)}`;countdown.title=distance===0?"Starts today":distance>0?`Starts in ${distance} day${distance===1?"":"s"}`:`Started ${Math.abs(distance)} day${Math.abs(distance)===1?"":"s"} ago`;row.insertBefore(countdown,row.querySelector(".row-title"));}
     row.append(actions);
   });
 }
