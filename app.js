@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.6.0";
+const APP_VERSION = "1.6.1";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -33,7 +33,7 @@ function load() {
   try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)); if (saved?.projects) { state.projects = saved.projects.map(p=>({...p,tasks:(p.tasks||[]).map(task=>decodeTaskHierarchy(task))})); state.activeProjectId = saved.activeProjectId; } } catch {}
   state.activeProjectId = null;
   state.collapsedProjects = new Set(state.projects.map(p => p.id));
-  state.homeCollapsedProjects.clear();
+  applyOpeningExpansion();
 }
 function workspacePayload() { return { projects: state.projects.map(p=>({...p,tasks:p.tasks.map(encodeTaskHierarchy)})), activeProjectId: state.activeProjectId }; }
 function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify(workspacePayload())); scheduleRemoteSync(); }
@@ -67,11 +67,14 @@ function hierarchicalTasks(tasks, honorCollapsed = true) {
 function taskHasAncestor(task, ancestorId, tasks) { let current=task; while(current?.parentId){if(current.parentId===ancestorId)return true;current=tasks.find(item=>item.id===current.parentId);}return false; }
 function resetToHomeView() {
   state.activeProjectId = null;
-  state.homeCollapsedProjects.clear();
-  state.collapsedTasks.clear();
+  applyOpeningExpansion();
   $("searchInput").value = "";
   $("homeStatusFilter").value = "all";
   $("homeDateFilter").value = "all";
+}
+function applyOpeningExpansion() {
+  state.homeCollapsedProjects.clear();
+  state.collapsedTasks = new Set(state.projects.flatMap(p=>p.tasks.filter(task=>taskDepth(task,p.tasks)===0&&p.tasks.some(child=>child.parentId===task.id)).map(task=>task.id)));
 }
 function toggleAllNodes() {
   const parents=state.projects.flatMap(p=>p.tasks.filter(task=>p.tasks.some(child=>child.parentId===task.id))), allProjectsCollapsed=state.projects.length>0&&state.projects.every(item=>state.homeCollapsedProjects.has(item.id)), allTasksCollapsed=parents.every(item=>state.collapsedTasks.has(item.id)), allCollapsed=allProjectsCollapsed&&allTasksCollapsed;
@@ -410,7 +413,7 @@ async function loadRemoteWorkspace() {
   if (projectsResult.data.length) {
     const localParents=new Map(state.projects.flatMap(p=>p.tasks.filter(t=>t.parentId).map(t=>[t.id,t.parentId]))); let recoveredLocalHierarchy=false;
     state.projects = projectsResult.data.map(p => ({ id:p.id, name:p.name, description:p.description, color:p.color, start:p.start_date || "", end:p.end_date || "", tasks:tasksResult.data.filter(t => t.project_id === p.id).map(t => {const raw={id:t.id,name:t.name,status:t.status,owner:t.owner,start:t.start_date||"",end:t.end_date||"",notes:t.notes,parentId:t.parent_id||null,sortOrder:t.sort_order}, decoded=decodeTaskHierarchy(raw,localParents.get(t.id));if(!raw.parentId&&!raw.notes?.match(PARENT_META)&&localParents.has(t.id))recoveredLocalHierarchy=true;return decoded;}) }));
-    state.activeProjectId = null; localStorage.setItem(STORAGE_KEY, JSON.stringify(workspacePayload())); remoteReady = true; setSyncStatus("Synced with Supabase"); render(); if(recoveredLocalHierarchy)scheduleRemoteSync();
+    state.activeProjectId = null; applyOpeningExpansion(); localStorage.setItem(STORAGE_KEY, JSON.stringify(workspacePayload())); remoteReady = true; setSyncStatus("Synced with Supabase"); render(); if(recoveredLocalHierarchy)scheduleRemoteSync();
   } else if (state.projects.length) {
     setSyncStatus("Local data awaiting backup"); $("migrationModal").hidden = false;
   } else { remoteReady = true; setSyncStatus("Synced with Supabase"); }
