@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.6.6";
+const APP_VERSION = "1.6.7";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -286,6 +286,11 @@ function decorateChartRows() {
 }
 function wireWritingRows() {
   decorateChartRows();
+  document.querySelectorAll(".task-label[data-home-task],.task-label[data-task]").forEach(row=>{
+    row.draggable=true;
+    row.ondragstart=event=>{const taskId=row.dataset.homeTask||row.dataset.task,projectId=row.dataset.homeParent||state.activeProjectId;if(!taskId||!projectId){event.preventDefault();return;}event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("application/x-northstar-task",JSON.stringify({projectId,taskId}));event.dataTransfer.setData("text/plain",taskId);row.classList.add("dragging-node");};
+    row.ondragend=()=>{row.classList.remove("dragging-node");document.querySelectorAll(".task-drop-target").forEach(cell=>cell.classList.remove("task-drop-target"));};
+  });
   document.querySelectorAll("[data-edit-task]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId = button.dataset.editParent; persist(); render(); openTask(button.dataset.editTask); });
   document.querySelectorAll("[data-edit-project]").forEach(button => button.onclick = event => { event.stopPropagation(); openProject(button.dataset.editProject); });
   document.querySelectorAll("[data-write-task]").forEach(button => button.onclick = event => { event.stopPropagation(); openWriting("task", button.dataset.writeParent, button.dataset.writeTask); });
@@ -491,7 +496,7 @@ function setup() {
     if(!task||!grid?.dataset.chartStart||!Number.isFinite(column))return;
     const droppedDate=addDays(grid.dataset.chartStart,column-2),duration=task.start&&task.end?dayDiff(task.start,task.end)+1:1;
     task.start=droppedDate;task.end=addDays(droppedDate,duration-1);
-    persist();render();toast(`${task.name} scheduled for ${formatDate(droppedDate)}`);
+    resetToHomeView();persist();render();toast(`${task.name} scheduled for ${formatDate(droppedDate)}`);
   });
   document.addEventListener("mouseover", event => { const chartTask=event.target.closest(".bar[data-bar],.bar[data-home-bar]");if(chartTask&&!chartTask.contains(event.relatedTarget)){showChartTaskTooltip(chartTask);return;}const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){showSideTaskTooltip(sideTask);return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))showCellTooltip(cell); });
   document.addEventListener("mouseout", event => { const chartTask=event.target.closest(".bar[data-bar],.bar[data-home-bar]");if(chartTask&&!chartTask.contains(event.relatedTarget)){hideChartTaskTooltip();return;}const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){hideSideTaskTooltip();return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))hideCellTooltip(); });
