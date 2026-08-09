@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.7.3";
+const APP_VERSION = "1.7.4";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -269,7 +269,7 @@ function decorateChartRows() {
     if (!taskId) {
       scheduledItem = state.projects.find(item=>item.id===projectId);
       row.classList.add("tree-level-1");
-      actions.append(chartAction("Doc", "document", "Open project document", { openDocument:"project", documentProject:projectId }));
+      actions.append(chartAction("Doc", `document ${hasWriting(scheduledItem.description)?"has-content":""}`, "Open project document", { openDocument:"project", documentProject:projectId }));
       if (edit) actions.append(edit);
       actions.append(chartAction("＋", "add", "Add task", { addRoot:projectId }));
       actions.append(chartAction("×", "delete", "Delete project", { deleteProjectRow:projectId }));
@@ -279,7 +279,7 @@ function decorateChartRows() {
       const depth=taskDepth(task,state.projects.find(item=>item.id===projectId)?.tasks||[]), hasChildren=state.projects.find(item=>item.id===projectId)?.tasks.some(item=>item.parentId===taskId);
       row.classList.add(`tree-level-${depth+2}`);
       if(hasChildren){const toggle=chartAction(state.collapsedTasks.has(taskId)?"›":"⌄","node-toggle",state.collapsedTasks.has(taskId)?"Expand children":"Collapse children",{toggleTask:taskId,toggleHome:row.dataset.homeTask?"1":""});row.insertBefore(toggle,row.querySelector(".row-title"));}
-      actions.append(chartAction("Doc", "document", "Open node document", { openDocument:"task", documentProject:projectId, documentTask:taskId }));
+      actions.append(chartAction("Doc", `document ${hasWriting(task?.notes)?"has-content":""}`, "Open node document", { openDocument:"task", documentProject:projectId, documentTask:taskId }));
       if (edit) actions.append(edit);
       if (task && depth < 2) actions.append(chartAction("＋", "add", "Add child", { addChild:taskId, addChildProject:projectId }));
       actions.append(chartAction("×", "delete", "Delete node", { deleteTaskRow:taskId, deleteParent:projectId }));
