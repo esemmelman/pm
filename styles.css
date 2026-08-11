@@ -162,5 +162,5 @@ main{margin-left:0!important;width:100%!important}
 .writing-editor a[href]{cursor:pointer}
 .timeline-pane{min-width:0;max-width:100%}
 .timeline-pane .gantt-wrap{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
-.gantt-grid>.gantt-corner{left:auto;transform:translate3d(var(--pinned-left,0),0,0);will-change:transform}
-.gantt-grid>.task-label{position:relative;left:auto;transform:translate3d(var(--pinned-left,0),0,0);will-change:transform}
+.gantt-grid{width:max-content;min-width:100%}
+.gantt-grid>.gantt-corner,.gantt-grid>.task-label{position:sticky;left:0}
