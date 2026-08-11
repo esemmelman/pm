@@ -260,3 +260,18 @@ button,input,select,textarea{font-size:16px}
   .home-grid .home-task-row.tree-level-3,
   .home-grid .home-task-row.tree-level-4{padding-left:28px!important}
 }
+
+/* Stronger calendar scanning: today, weekends, and larger date type. */
+.gantt-grid .month{font-size:16px}
+.gantt-grid .day{font-size:17px}
+.gantt-grid .day small,.gantt-grid .day.today small{font-size:14px}
+.gantt-grid .day.weekend{background:#e4e4e4}
+.gantt-grid .gantt-cell.weekend{background:#e9e9e9}
+.gantt-grid .day.today{background:#f3e8b8}
+.gantt-grid .gantt-cell.today-column{background:#fff7d6}
+.gantt-grid .gantt-cell.weekend.today-column{background:#eee5bd}
+@media(max-width:620px){
+  .gantt-grid .month{font-size:14px}
+  .gantt-grid .day{font-size:15px}
+  .gantt-grid .day small,.gantt-grid .day.today small{font-size:12px}
+}
