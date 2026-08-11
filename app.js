@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.7.5";
+const APP_VERSION = "1.7.6";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -497,6 +497,12 @@ function setup() {
   document.querySelectorAll(".backdrop").forEach(modal => modal.onclick = e => { if (e.target === modal) closeModals(); });
   document.querySelectorAll("[data-color]").forEach(button => button.onclick = () => { state.color = button.dataset.color; document.querySelectorAll("[data-color]").forEach(b => b.classList.toggle("selected", b === button)); });
   document.querySelectorAll("[data-format]").forEach(button => button.onclick = () => { $("writingEditor").focus(); document.execCommand(button.dataset.format, false); });
+  $("writingEditor").addEventListener("click", event => {
+    const link = event.target.closest("a[href]");
+    if (!link) return;
+    event.preventDefault();
+    window.open(link.href, "_blank", "noopener,noreferrer");
+  });
   $("writingForm").onsubmit = event => { event.preventDefault(); const p=state.projects.find(item=>item.id===$("writingProjectId").value); if(!p)return; const html=linkifyDocumentHtml($("writingEditor").innerHTML.trim()); if($("writingType").value==="task"){const task=p.tasks.find(item=>item.id===$("writingTaskId").value);if(!task)return;task.notes=html;}else p.description=html; resetToHomeView();persist();closeModals();render();toast("Writing saved"); };
   $("projectForm").onsubmit = event => { event.preventDefault(); const start=$("projectStart").value,end=$("projectEnd").value;if((start&&!end)||(!start&&end)){toast("Add both project dates or leave both blank");return;}if(start&&parseDate(end)<parseDate(start)){toast("End date must be after start date");return;}const id=$("projectId").value, existing=state.projects.find(p=>p.id===id), data={id:id||uid(),name:$("projectNameInput").value.trim(),description:existing?.description||"",color:state.color,start,end,tasks:existing?.tasks||[]}; if(existing) state.projects[state.projects.indexOf(existing)]=data; else state.projects.push(data); resetToHomeView();persist();closeModals();render();toast(existing?"Project updated":"Project created"); };
   $("taskForm").onsubmit = event => { event.preventDefault(); const start=$("taskStart").value,end=$("taskEnd").value;if((start&&!end)||(!start&&end)){toast("Add both task dates or leave both blank");return;}if(start&&parseDate(end)<parseDate(start)){toast("End date must be after start date");return;} const id=$("taskId").value, existing=project().tasks.find(t=>t.id===id), data={id:id||uid(),name:$("taskNameInput").value.trim(),status:$("taskStatus").value,owner:$("taskOwner").value.trim(),start,end,notes:existing?.notes||"",parentId:$("taskParent").value||null,sortOrder:existing?.sortOrder??project().tasks.length}; if(existing)project().tasks[project().tasks.indexOf(existing)]=data;else project().tasks.push(data);resetToHomeView();persist();closeModals();render();toast(existing?"Node updated":"Node added"); };
