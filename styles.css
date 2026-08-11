@@ -164,3 +164,48 @@ main{margin-left:0!important;width:100%!important}
 .timeline-pane .gantt-wrap{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
 .gantt-grid{width:max-content;min-width:100%}
 .gantt-grid>.gantt-corner,.gantt-grid>.task-label{position:sticky;left:0}
+
+/* Compact spreadsheet skin inspired by the planning sheet reference. */
+:root{--sheet-line:#a9a9a9;--sheet-header:#f4ecd2;--sheet-blue:#0785df;--sheet-red:#ef7d7d}
+body{font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff}
+.content{padding-top:12px}
+.home-heading,.project-head{font-family:Arial,Helvetica,sans-serif}
+.gantt-wrap,.task-list{border:1px solid var(--sheet-line);border-radius:0;background:#fff;box-shadow:none}
+.gantt-grid{font-family:Arial,Helvetica,sans-serif}
+.gantt-grid .gantt-corner{background:var(--sheet-header);border-color:var(--sheet-line);padding:7px 6px;color:#000;font-size:11px;font-weight:700;letter-spacing:0}
+.gantt-grid .month{height:34px;padding:9px 0 6px;background:var(--sheet-header);border-right:1px solid var(--sheet-line);border-bottom:1px solid var(--sheet-line);color:#000;font-size:12px;font-weight:700}
+.gantt-grid .day{height:35px;padding:5px 0 3px;background:var(--sheet-header);border-right:1px solid var(--sheet-line);border-bottom:1px solid var(--sheet-line);color:#000;font-size:12px;font-weight:700;line-height:1}
+.gantt-grid .day small{margin-top:4px;color:#000;font-size:10px;font-weight:400}
+.gantt-grid .day.weekend{background:#f7f0dc;color:#222}
+.gantt-grid .day.today{background:#eadfae;color:#000;box-shadow:inset 0 -3px 0 #0785df}
+.gantt-grid .day.today small{color:#000}
+.gantt-grid .task-label{height:29px;padding:0 6px;border-right:1px solid var(--sheet-line);border-bottom:1px solid var(--sheet-line);background:#fff;box-shadow:none;color:#000}
+.gantt-grid .task-label:hover{background:#f7f7f7}
+.gantt-grid .task-label b{font:400 15px/1.1 Arial,Helvetica,sans-serif;color:#000}
+.gantt-grid .gantt-cell{height:29px;border-right:1px solid var(--sheet-line);border-bottom:1px solid var(--sheet-line);background:#fff;transition:none}
+.gantt-grid .gantt-cell.weekend{background:#fafafa}
+.gantt-grid .gantt-cell:hover{background:#e8f3fb;box-shadow:inset 0 0 0 1px #0785df}
+.gantt-grid .gantt-cell.today-column{background:#fffdf3}
+.home-grid .home-project-row{height:29px;padding-left:3px!important;background:#fff;font-weight:700}
+.home-grid .home-project-row:hover{background:#f7f7f7}
+.home-grid .home-project-row .row-title b{font-weight:700}
+.home-grid .home-project-row .home-chart-toggle{color:#000;font-size:14px;font-weight:700}
+.home-grid .home-project-row i{display:none}
+.home-grid .home-task-row,.home-grid .gantt-cell.task-band,.home-grid .project-band{height:29px}
+.home-grid .home-task-row{padding-left:28px}
+.task-label.node-depth-1,.task-label.node-depth-2{background:#fff}
+.task-label.node-depth-1:before,.task-label.node-depth-2:before{color:#555}
+.task-label .row-title{font-family:Arial,Helvetica,sans-serif}
+.task-label .row-edit,.row-action{font-family:Arial,Helvetica,sans-serif}
+.gantt-grid .bar,.home-grid [data-home-bar],.home-grid .project-bar{height:23px;margin:0;border-radius:0;box-shadow:none;background:var(--sheet-blue);color:#fff;font:700 11px Arial,Helvetica,sans-serif}
+.gantt-grid .bar.to-do,.gantt-grid .bar.in-progress,.gantt-grid .bar.done,.gantt-grid .project-bar{background:var(--sheet-blue)}
+.gantt-grid .bar.review{background:var(--sheet-red)}
+.legend{border-color:var(--sheet-line);border-radius:0;font-family:Arial,Helvetica,sans-serif}
+.legend .todo,.legend .doing,.legend .done{background:var(--sheet-blue)}
+.legend .review{background:var(--sheet-red)}
+@media(max-width:620px){
+  .gantt-grid .month{height:28px;padding:7px 0 4px;font-size:11px}
+  .gantt-grid .day{top:28px;height:32px;padding:4px 0 2px;font-size:11px}
+  .gantt-grid .task-label,.gantt-grid .gantt-cell,.home-grid .home-project-row,.home-grid .home-task-row,.home-grid .project-band,.home-grid .gantt-cell.task-band{height:29px}
+  .gantt-grid .task-label b{font-size:13px}
+}
