@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.7.20";
+const APP_VERSION = "1.7.21";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -289,10 +289,15 @@ function chartAction(label, className, title, data = {}) {
   return button;
 }
 function closeChartContextMenus() {
-  document.querySelectorAll(".row-actions.context-open").forEach(menu => menu.classList.remove("context-open"));
+  document.querySelectorAll(".row-actions.context-open").forEach(menu => {
+    menu.classList.remove("context-open"); menu.style.left=""; menu.style.top="";
+    if(menu._contextOwner?.isConnected)menu._contextOwner.append(menu);else menu.remove();
+  });
 }
 function openChartContextMenu(event, menu) {
   event.preventDefault(); event.stopPropagation(); closeChartContextMenus();
+  menu._contextOwner=event.currentTarget;
+  document.body.append(menu);
   menu.classList.add("context-open");
   const bounds=menu.getBoundingClientRect(),gap=8;
   menu.style.left=`${Math.max(gap,Math.min(event.clientX,window.innerWidth-bounds.width-gap))}px`;
