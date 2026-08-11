@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.7.4";
+const APP_VERSION = "1.7.5";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -8,6 +8,37 @@ const state = { projects: [], activeProjectId: null, view: "gantt", zoom: 1, col
 const $ = id => document.getElementById(id);
 const esc = value => { const el = document.createElement("span"); el.textContent = value ?? ""; return el.innerHTML; };
 const plainText = value => { const el = document.createElement("div"); el.innerHTML = value || ""; return el.textContent || ""; };
+function linkifyDocumentHtml(value) {
+  const root = document.createElement("div");
+  root.innerHTML = value || "";
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    if (!node.parentElement?.closest("a,script,style")) nodes.push(node);
+  }
+  const urlPattern = /(?:https?:\/\/|www\.)[^\s<>]+/gi;
+  nodes.forEach(node => {
+    const text = node.nodeValue || "";
+    let match, cursor = 0;
+    const fragment = document.createDocumentFragment();
+    while ((match = urlPattern.exec(text))) {
+      let label = match[0], trailing = "";
+      while (/[.,!?;:)]$/.test(label)) { trailing = label.slice(-1) + trailing; label = label.slice(0, -1); }
+      fragment.append(text.slice(cursor, match.index));
+      const link = document.createElement("a");
+      link.href = label.startsWith("www.") ? `https://${label}` : label;
+      link.textContent = label;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      fragment.append(link, trailing);
+      cursor = match.index + match[0].length;
+    }
+    if (cursor) { fragment.append(text.slice(cursor)); node.replaceWith(fragment); }
+  });
+  root.querySelectorAll("a[href]").forEach(link => { link.target = "_blank"; link.rel = "noopener noreferrer"; });
+  return root.innerHTML;
+}
 const hasWriting = value => plainText(value).trim().length > 0;
 const parseDate = value => new Date(`${value}T12:00:00`);
 const toIso = value => value.toISOString().slice(0, 10);
@@ -309,7 +340,7 @@ function wireWritingRows() {
 }
 function openWriting(type, projectId, taskId = "") {
   const p = state.projects.find(item => item.id === projectId), task = p?.tasks.find(item => item.id === taskId), item = type === "task" ? task : p; if (!item) return;
-  $("writingType").value = type; $("writingProjectId").value = projectId; $("writingTaskId").value = taskId; $("writingLabel").textContent = type === "task" ? "TASK NOTES" : "PROJECT NOTES"; $("writingTitle").textContent = item.name; $("writingEditor").innerHTML = type === "task" ? (task.notes || "") : (p.description || ""); $("writingModal").hidden = false; setTimeout(() => $("writingEditor").focus(), 30);
+  $("writingType").value = type; $("writingProjectId").value = projectId; $("writingTaskId").value = taskId; $("writingLabel").textContent = type === "task" ? "TASK NOTES" : "PROJECT NOTES"; $("writingTitle").textContent = item.name; $("writingEditor").innerHTML = linkifyDocumentHtml(type === "task" ? (task.notes || "") : (p.description || "")); $("writingModal").hidden = false; setTimeout(() => $("writingEditor").focus(), 30);
 }
 function updateMobileDrag(bar, item, shift) {
   if (!matchMedia("(max-width:620px)").matches || !item) return;
@@ -466,7 +497,7 @@ function setup() {
   document.querySelectorAll(".backdrop").forEach(modal => modal.onclick = e => { if (e.target === modal) closeModals(); });
   document.querySelectorAll("[data-color]").forEach(button => button.onclick = () => { state.color = button.dataset.color; document.querySelectorAll("[data-color]").forEach(b => b.classList.toggle("selected", b === button)); });
   document.querySelectorAll("[data-format]").forEach(button => button.onclick = () => { $("writingEditor").focus(); document.execCommand(button.dataset.format, false); });
-  $("writingForm").onsubmit = event => { event.preventDefault(); const p=state.projects.find(item=>item.id===$("writingProjectId").value); if(!p)return; const html=$("writingEditor").innerHTML.trim(); if($("writingType").value==="task"){const task=p.tasks.find(item=>item.id===$("writingTaskId").value);if(!task)return;task.notes=html;}else p.description=html; resetToHomeView();persist();closeModals();render();toast("Writing saved"); };
+  $("writingForm").onsubmit = event => { event.preventDefault(); const p=state.projects.find(item=>item.id===$("writingProjectId").value); if(!p)return; const html=linkifyDocumentHtml($("writingEditor").innerHTML.trim()); if($("writingType").value==="task"){const task=p.tasks.find(item=>item.id===$("writingTaskId").value);if(!task)return;task.notes=html;}else p.description=html; resetToHomeView();persist();closeModals();render();toast("Writing saved"); };
   $("projectForm").onsubmit = event => { event.preventDefault(); const start=$("projectStart").value,end=$("projectEnd").value;if((start&&!end)||(!start&&end)){toast("Add both project dates or leave both blank");return;}if(start&&parseDate(end)<parseDate(start)){toast("End date must be after start date");return;}const id=$("projectId").value, existing=state.projects.find(p=>p.id===id), data={id:id||uid(),name:$("projectNameInput").value.trim(),description:existing?.description||"",color:state.color,start,end,tasks:existing?.tasks||[]}; if(existing) state.projects[state.projects.indexOf(existing)]=data; else state.projects.push(data); resetToHomeView();persist();closeModals();render();toast(existing?"Project updated":"Project created"); };
   $("taskForm").onsubmit = event => { event.preventDefault(); const start=$("taskStart").value,end=$("taskEnd").value;if((start&&!end)||(!start&&end)){toast("Add both task dates or leave both blank");return;}if(start&&parseDate(end)<parseDate(start)){toast("End date must be after start date");return;} const id=$("taskId").value, existing=project().tasks.find(t=>t.id===id), data={id:id||uid(),name:$("taskNameInput").value.trim(),status:$("taskStatus").value,owner:$("taskOwner").value.trim(),start,end,notes:existing?.notes||"",parentId:$("taskParent").value||null,sortOrder:existing?.sortOrder??project().tasks.length}; if(existing)project().tasks[project().tasks.indexOf(existing)]=data;else project().tasks.push(data);resetToHomeView();persist();closeModals();render();toast(existing?"Node updated":"Node added"); };
   $("deleteTask").onclick = () => { const task=project().tasks.find(t=>t.id===$("taskId").value); closeModals(); askDelete("task",task); };
