@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.7.19";
+const APP_VERSION = "1.7.20";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -288,6 +288,16 @@ function chartAction(label, className, title, data = {}) {
   Object.entries(data).forEach(([key,value]) => button.dataset[key] = value);
   return button;
 }
+function closeChartContextMenus() {
+  document.querySelectorAll(".row-actions.context-open").forEach(menu => menu.classList.remove("context-open"));
+}
+function openChartContextMenu(event, menu) {
+  event.preventDefault(); event.stopPropagation(); closeChartContextMenus();
+  menu.classList.add("context-open");
+  const bounds=menu.getBoundingClientRect(),gap=8;
+  menu.style.left=`${Math.max(gap,Math.min(event.clientX,window.innerWidth-bounds.width-gap))}px`;
+  menu.style.top=`${Math.max(gap,Math.min(event.clientY,window.innerHeight-bounds.height-gap))}px`;
+}
 function decorateChartRows() {
   document.querySelectorAll(".task-label").forEach(row => {
     if (row.querySelector(".row-actions")) return;
@@ -300,23 +310,24 @@ function decorateChartRows() {
     if (!taskId) {
       scheduledItem = state.projects.find(item=>item.id===projectId);
       row.classList.add("tree-level-1");
-      actions.append(chartAction("Doc", `document ${hasWriting(scheduledItem.description)?"has-content":""}`, "Open project document", { openDocument:"project", documentProject:projectId }));
+      actions.append(chartAction("Document", `document ${hasWriting(scheduledItem.description)?"has-content":""}`, "Open project document", { openDocument:"project", documentProject:projectId }));
       if (edit) actions.append(edit);
-      actions.append(chartAction("＋", "add", "Add task", { addRoot:projectId }));
-      actions.append(chartAction("×", "delete", "Delete project", { deleteProjectRow:projectId }));
+      actions.append(chartAction("Add task", "add", "Add task", { addRoot:projectId }));
+      actions.append(chartAction("Delete", "delete", "Delete project", { deleteProjectRow:projectId }));
     } else {
       const task = state.projects.find(item=>item.id===projectId)?.tasks.find(item=>item.id===taskId);
       scheduledItem = task;
       const depth=taskDepth(task,state.projects.find(item=>item.id===projectId)?.tasks||[]), hasChildren=state.projects.find(item=>item.id===projectId)?.tasks.some(item=>item.parentId===taskId);
       row.classList.add(`tree-level-${depth+2}`);
       if(hasChildren){const toggle=chartAction(state.collapsedTasks.has(taskId)?"›":"⌄","node-toggle",state.collapsedTasks.has(taskId)?"Expand children":"Collapse children",{toggleTask:taskId,toggleHome:row.dataset.homeTask?"1":""});row.insertBefore(toggle,row.querySelector(".row-title"));}
-      actions.append(chartAction("Doc", `document ${hasWriting(task?.notes)?"has-content":""}`, "Open node document", { openDocument:"task", documentProject:projectId, documentTask:taskId }));
+      actions.append(chartAction("Document", `document ${hasWriting(task?.notes)?"has-content":""}`, "Open node document", { openDocument:"task", documentProject:projectId, documentTask:taskId }));
       if (edit) actions.append(edit);
-      if (task && depth < 2) actions.append(chartAction("＋", "add", "Add child", { addChild:taskId, addChildProject:projectId }));
-      actions.append(chartAction("×", "delete", "Delete node", { deleteTaskRow:taskId, deleteParent:projectId }));
+      if (task && depth < 2) actions.append(chartAction("Add child", "add", "Add child", { addChild:taskId, addChildProject:projectId }));
+      actions.append(chartAction("Delete", "delete", "Delete node", { deleteTaskRow:taskId, deleteParent:projectId }));
     }
     if(scheduledItem?.start){const distance=dayDiff(todayIso(),scheduledItem.start);if(distance>=0){const countdown=document.createElement("span");countdown.className="node-start-countdown";countdown.textContent=String(distance);countdown.title=distance===0?"Starts today":`Starts in ${distance} day${distance===1?"":"s"}`;row.querySelector(".row-title")?.append(countdown);}}
     row.append(actions);
+    row.oncontextmenu=event=>openChartContextMenu(event,actions);
   });
 }
 function wireWritingRows() {
@@ -517,7 +528,7 @@ function setup() {
   document.querySelectorAll("[data-hierarchy-level]").forEach(button=>button.onclick=()=>showHierarchyLevel(Number(button.dataset.hierarchyLevel)));
   $("menuButton").onclick=()=>$("sidebar").classList.toggle("open");
   document.querySelectorAll(".mobile-view-switch").forEach(switcher => switcher.onclick = event => { const button = event.target.closest("[data-mobile-view]"); if (button) setMobileView(switcher.closest("section"), button.dataset.mobileView); });
-  document.addEventListener("click", event => { const cell = event.target.closest(".gantt-cell"); if (cell) createTaskFromCell(cell); });
+  document.addEventListener("click", event => { if(!event.target.closest(".row-actions"))closeChartContextMenus();const cell = event.target.closest(".gantt-cell"); if (cell) createTaskFromCell(cell); });
   document.addEventListener("dragover", event => {
     const cell = event.target.closest(".gantt-cell");
     if (!cell || !event.dataTransfer.types.includes("application/x-northstar-task")) return;
@@ -545,7 +556,7 @@ function setup() {
   document.addEventListener("mouseover", event => { const chartTask=event.target.closest(".bar[data-bar],.bar[data-home-bar]");if(chartTask&&!chartTask.contains(event.relatedTarget)){showChartTaskTooltip(chartTask);return;}const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){showSideTaskTooltip(sideTask);return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))showCellTooltip(cell); });
   document.addEventListener("mouseout", event => { const chartTask=event.target.closest(".bar[data-bar],.bar[data-home-bar]");if(chartTask&&!chartTask.contains(event.relatedTarget)){hideChartTaskTooltip();return;}const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){hideSideTaskTooltip();return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))hideCellTooltip(); });
   document.addEventListener("mousedown", hideSideTaskTooltip);
-  document.onkeydown=event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();$("searchInput").focus();}if(event.key==="Escape"){closeModals();$("confirm").hidden=true;}};
+  document.onkeydown=event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();$("searchInput").focus();}if(event.key==="Escape"){closeChartContextMenus();closeModals();$("confirm").hidden=true;}};
   render();
 }
 setup();
