@@ -179,25 +179,25 @@ body{font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff}
 .gantt-grid .day.weekend{background:#f7f0dc;color:#222}
 .gantt-grid .day.today{background:#eadfae;color:#000;box-shadow:inset 0 -3px 0 #0785df}
 .gantt-grid .day.today small{color:#000}
-.gantt-grid .task-label{height:29px;padding:0 6px;border-right:1px solid var(--sheet-line);border-bottom:1px solid var(--sheet-line);background:#fff;box-shadow:none;color:#000}
+.gantt-grid .task-label{height:22px;padding:0 6px;border-right:1px solid var(--sheet-line);border-bottom:1px solid var(--sheet-line);background:#fff;box-shadow:none;color:#000}
 .gantt-grid .task-label:hover{background:#f7f7f7}
 .gantt-grid .task-label b{font:400 15px/1.1 Arial,Helvetica,sans-serif;color:#000}
-.gantt-grid .gantt-cell{height:29px;border-right:1px solid var(--sheet-line);border-bottom:1px solid var(--sheet-line);background:#fff;transition:none}
+.gantt-grid .gantt-cell{height:22px;border-right:1px solid var(--sheet-line);border-bottom:1px solid var(--sheet-line);background:#fff;transition:none}
 .gantt-grid .gantt-cell.weekend{background:#fafafa}
 .gantt-grid .gantt-cell:hover{background:#e8f3fb;box-shadow:inset 0 0 0 1px #0785df}
 .gantt-grid .gantt-cell.today-column{background:#fffdf3}
-.home-grid .home-project-row{height:29px;padding-left:3px!important;background:#fff;font-weight:700}
+.home-grid .home-project-row{height:22px;padding-left:3px!important;background:#fff;font-weight:700}
 .home-grid .home-project-row:hover{background:#f7f7f7}
 .home-grid .home-project-row .row-title b{font-weight:700}
 .home-grid .home-project-row .home-chart-toggle{color:#000;font-size:14px;font-weight:700}
 .home-grid .home-project-row i{display:none}
-.home-grid .home-task-row,.home-grid .gantt-cell.task-band,.home-grid .project-band{height:29px}
+.home-grid .home-task-row,.home-grid .gantt-cell.task-band,.home-grid .project-band{height:22px}
 .home-grid .home-task-row{padding-left:28px}
 .task-label.node-depth-1,.task-label.node-depth-2{background:#fff}
 .task-label.node-depth-1:before,.task-label.node-depth-2:before{color:#555}
 .task-label .row-title{font-family:Arial,Helvetica,sans-serif}
 .task-label .row-edit,.row-action{font-family:Arial,Helvetica,sans-serif}
-.gantt-grid .bar,.home-grid [data-home-bar],.home-grid .project-bar{height:23px;margin:0;border-radius:0;box-shadow:none;background:var(--sheet-blue);color:#fff;font:700 11px Arial,Helvetica,sans-serif}
+.gantt-grid .bar,.home-grid [data-home-bar],.home-grid .project-bar{height:18px;margin:0;border-radius:0;box-shadow:none;background:var(--sheet-blue);color:#fff;font:700 11px Arial,Helvetica,sans-serif}
 .gantt-grid .bar.to-do,.gantt-grid .bar.in-progress,.gantt-grid .bar.done,.gantt-grid .project-bar{background:var(--sheet-blue)}
 .gantt-grid .bar.review{background:var(--sheet-red)}
 .legend{border-color:var(--sheet-line);border-radius:0;font-family:Arial,Helvetica,sans-serif}
@@ -206,6 +206,31 @@ body{font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff}
 @media(max-width:620px){
   .gantt-grid .month{height:28px;padding:7px 0 4px;font-size:11px}
   .gantt-grid .day{top:28px;height:32px;padding:4px 0 2px;font-size:11px}
-  .gantt-grid .task-label,.gantt-grid .gantt-cell,.home-grid .home-project-row,.home-grid .home-task-row,.home-grid .project-band,.home-grid .gantt-cell.task-band{height:29px}
+  .gantt-grid .task-label,.gantt-grid .gantt-cell,.home-grid .home-project-row,.home-grid .home-task-row,.home-grid .project-band,.home-grid .gantt-cell.task-band{height:22px}
   .gantt-grid .task-label b{font-size:13px}
 }
+
+/* One-character hierarchy steps: a child starts under its parent's second letter. */
+.home-grid .home-task-row.tree-level-2{padding-left:36px!important}
+.home-grid .home-task-row.tree-level-3{padding-left:44px!important}
+.home-grid .home-task-row.tree-level-4{padding-left:52px!important}
+.task-label.node-depth-0{padding-left:10px!important}
+.task-label.node-depth-1{padding-left:18px!important}
+.task-label.node-depth-2{padding-left:26px!important}
+.task-label.node-depth-1:before,.task-label.node-depth-2:before{content:none}
+.tree-level-2{--tree-toggle-left:18px}
+.tree-level-3{--tree-toggle-left:26px}
+.tree-level-4{--tree-toggle-left:34px}
+.node-depth-0{--tree-toggle-left:3px}
+.node-depth-1{--tree-toggle-left:11px}
+.node-depth-2{--tree-toggle-left:19px}
+@media(max-width:620px){
+  .home-grid .home-task-row.tree-level-2{padding-left:36px!important}
+  .home-grid .home-task-row.tree-level-3{padding-left:44px!important}
+  .home-grid .home-task-row.tree-level-4{padding-left:52px!important}
+  .task-label.node-depth-1{padding-left:18px!important}
+}
+
+/* Projects and any node with children are hierarchy parents. */
+.gantt-grid .home-project-row .row-title b,
+.gantt-grid .task-label:has(.node-toggle) .row-title b{font-weight:700}
