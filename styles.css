@@ -292,3 +292,8 @@ button,input,select,textarea{font-size:16px}
   .gantt-grid .month{height:32px}
   .gantt-grid .day{height:42px;padding:4px 0 3px}
 }
+
+/* Larger, single-line labels on every Gantt bar. */
+.gantt-grid .bar,.home-grid [data-home-bar],.home-grid .project-bar{height:20px;font:700 15px/1 Arial,Helvetica,sans-serif;white-space:nowrap}
+.gantt-grid .bar.show-balloon{height:20px!important;white-space:nowrap!important}
+.gantt-grid .bar.show-balloon:after{width:max-content!important;min-width:100%!important;max-width:none!important;max-height:none!important;padding:3px 7px!important;white-space:nowrap!important;overflow:visible!important;font:700 15px/1 Arial,Helvetica,sans-serif!important}
