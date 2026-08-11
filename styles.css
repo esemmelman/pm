@@ -162,4 +162,5 @@ main{margin-left:0!important;width:100%!important}
 .writing-editor a[href]{cursor:pointer}
 .timeline-pane{min-width:0;max-width:100%}
 .timeline-pane .gantt-wrap{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
-.gantt-grid>.gantt-corner,.gantt-grid>.task-label{position:sticky;left:0}
+.gantt-grid>.gantt-corner{left:auto}
+.gantt-grid>.task-label{position:relative;left:auto}
