@@ -160,3 +160,6 @@ main{margin-left:0!important;width:100%!important}
 .task-label .row-title{display:flex;align-items:center;min-height:100%;padding:2px 0}.task-label .row-title b{display:block;max-height:none;overflow:hidden;white-space:nowrap;line-height:1.15;text-overflow:ellipsis;padding-bottom:1px}.task-label .row-title:hover b,.task-label .row-title:focus-visible b{display:-webkit-box;max-height:2.3em;overflow:hidden;white-space:normal;line-height:1.15;text-overflow:clip;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;padding-bottom:1px}
 @media(max-width:620px){.content{padding-left:10px;padding-right:10px}.gantt-grid,.home-grid{grid-template-columns:280px repeat(var(--days),var(--day-width))}.task-label.node-depth-1{padding-left:25px!important}}
 .writing-editor a[href]{cursor:pointer}
+.timeline-pane{min-width:0;max-width:100%}
+.timeline-pane .gantt-wrap{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
+.gantt-grid>.gantt-corner,.gantt-grid>.task-label{position:sticky;left:0}
