@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.7.9";
+const APP_VERSION = "1.7.10";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -40,17 +40,12 @@ function linkifyDocumentHtml(value) {
   return root.innerHTML;
 }
 function pinTimelineLabels(wrap) {
-  let frame = 0;
+  const grid = wrap.querySelector(".gantt-grid");
+  if (!grid) return;
   const update = () => {
-    frame = 0;
-    const offset = wrap.scrollLeft;
-    wrap.querySelectorAll(".gantt-grid>.gantt-corner,.gantt-grid>.task-label").forEach(label => {
-      label.style.transform = `translate3d(${offset}px,0,0)`;
-    });
+    grid.style.setProperty("--pinned-left", `${wrap.scrollLeft}px`);
   };
-  wrap.addEventListener("scroll", () => {
-    if (!frame) frame = requestAnimationFrame(update);
-  }, { passive:true });
+  wrap.addEventListener("scroll", update, { passive:true });
   update();
 }
 const hasWriting = value => plainText(value).trim().length > 0;
