@@ -303,3 +303,9 @@ button,input,select,textarea{font-size:16px}
 .gantt-grid .day.today small{color:#173b2e;white-space:nowrap;overflow:visible}
 .gantt-grid .gantt-cell.today-column{background:#e7f5e3}
 .gantt-grid .gantt-cell.weekend.today-column{background:#dcebd8}
+
+/* Optional simplified schedule view: solid, unlabeled date blocks. */
+.gantt-grid.block-view .bar,.gantt-grid.block-view .bar.show-balloon{font-size:0!important;color:transparent!important;overflow:hidden!important}
+.gantt-grid.block-view .bar.show-balloon:after{display:none!important;content:none!important}
+.level-controls #blockViewToggle{border-left:1px solid var(--line);border-radius:0 6px 6px 0;padding-inline:10px}
+.level-controls #blockViewToggle.active{background:#173b2e;color:#fff}
