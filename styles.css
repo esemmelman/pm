@@ -309,3 +309,4 @@ button,input,select,textarea{font-size:16px}
 .gantt-grid.block-view .bar.show-balloon:after{display:none!important;content:none!important}
 .level-controls #blockViewToggle{border-left:1px solid var(--line);border-radius:0 6px 6px 0;padding-inline:10px}
 .level-controls #blockViewToggle.active{background:#173b2e;color:#fff}
+.level-controls #nextSevenToggle.active{background:#173b2e;color:#fff}

@@ -1,10 +1,10 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.7.31";
+const APP_VERSION = "1.7.32";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
 const STATUS = ["To do", "In progress", "Review", "Done"];
-const state = { projects: [], activeProjectId: null, view: "gantt", zoom: 1, color: "#dbe88f", pendingDelete: null, collapsedProjects: new Set(), homeCollapsedProjects: new Set(), collapsedTasks: new Set(), visibleHierarchyLevel: 2, blockView: false, mobileExpandedProjectId: null };
+const state = { projects: [], activeProjectId: null, view: "gantt", zoom: 1, color: "#dbe88f", pendingDelete: null, collapsedProjects: new Set(), homeCollapsedProjects: new Set(), collapsedTasks: new Set(), shallowExpandedProjects: new Set(), visibleHierarchyLevel: 2, nextSevenDays: false, blockView: false, mobileExpandedProjectId: null };
 const $ = id => document.getElementById(id);
 const esc = value => { const el = document.createElement("span"); el.textContent = value ?? ""; return el.innerHTML; };
 const plainText = value => { const el = document.createElement("div"); el.innerHTML = value || ""; return el.textContent || ""; };
@@ -93,7 +93,8 @@ function hierarchicalTasks(tasks, honorCollapsed = true) {
     sorted.filter(child => child.parentId === task.id).forEach(visit);
   };
   sorted.filter(task => !task.parentId || !tasks.some(item => item.id === task.parentId)).forEach(visit);
-  return result;
+  const projectId=tasks[0]?.projectId;
+  return projectId&&state.shallowExpandedProjects.has(projectId)?result.filter(task=>taskDepth(task,tasks)===0):result;
 }
 function taskHasAncestor(task, ancestorId, tasks) { let current=task; while(current?.parentId){if(current.parentId===ancestorId)return true;current=tasks.find(item=>item.id===current.parentId);}return false; }
 function resetToHomeView() {
@@ -194,10 +195,11 @@ function scrollMobileTaskDateToThirdRow(taskId) {
 }
 function renderHomeGantt() {
   document.querySelectorAll("[data-hierarchy-level]").forEach(button=>button.classList.toggle("active",Number(button.dataset.hierarchyLevel)===state.visibleHierarchyLevel));
-  const all = allTasks(), statusFilter = $("homeStatusFilter").value, dateFilter = $("homeDateFilter").value, query = $("searchInput").value.trim().toLowerCase(), today = todayIso(), tomorrow = addDays(today, 1);
-  const tasks = all.filter(task => { const statusMatch = statusFilter === "all" || task.status === statusFilter; const dateMatch = dateFilter === "all" || (dateFilter === "today" ? task.start <= today && task.end >= today : task.start <= tomorrow && task.end >= today); const searchMatch = !query || `${task.name} ${task.owner} ${plainText(task.notes)} ${task.projectName}`.toLowerCase().includes(query); return statusMatch && dateMatch && searchMatch; });
+  const all = allTasks(), statusFilter = $("homeStatusFilter").value, dateFilter = $("homeDateFilter").value, query = $("searchInput").value.trim().toLowerCase(), today = todayIso(), tomorrow = addDays(today, 1), sevenDays=addDays(today,7);
+  let tasks = all.filter(task => { const statusMatch = statusFilter === "all" || task.status === statusFilter; const dateMatch = dateFilter === "all" || (dateFilter === "today" ? task.start <= today && task.end >= today : task.start <= tomorrow && task.end >= today); const searchMatch = !query || `${task.name} ${task.owner} ${plainText(task.notes)} ${task.projectName}`.toLowerCase().includes(query); return statusMatch && dateMatch && searchMatch; });
+  if(state.nextSevenDays){const included=new Set();tasks.filter(task=>(task.start>=today&&task.start<=sevenDays)||(task.end>=today&&task.end<=sevenDays)).forEach(task=>{included.add(task.id);const siblings=state.projects.find(p=>p.id===task.projectId)?.tasks||[];let current=task;while(current?.parentId){included.add(current.parentId);current=siblings.find(item=>item.id===current.parentId);}});tasks=tasks.filter(task=>included.has(task.id));}
   renderAgenda($("homeAgenda"), tasks, true);
-  const filtered = statusFilter !== "all" || dateFilter !== "all" || !!query; $("homeFilterDot").hidden = statusFilter === "all" && dateFilter === "all";
+  const filtered = statusFilter !== "all" || dateFilter !== "all" || !!query || state.nextSevenDays; $("homeFilterDot").hidden = statusFilter === "all" && dateFilter === "all" && !state.nextSevenDays;
   const matchingProjects = new Set(tasks.map(task => task.projectId)).size;
   $("homeSummary").textContent = state.projects.length ? `${matchingProjects} parent${matchingProjects === 1 ? "" : "s"} · ${tasks.length} ${filtered ? "matching " : ""}${tasks.length === 1 ? "child" : "children"}` : "No parents yet";
   if (!tasks.length && (!state.projects.length || filtered)) {
@@ -353,7 +355,7 @@ function wireWritingRows() {
   document.querySelectorAll("[data-delete-project-row]").forEach(button => button.onclick = event => { event.stopPropagation(); const item=state.projects.find(p=>p.id===button.dataset.deleteProjectRow); if(item)askDelete("project",item); });
   document.querySelectorAll("[data-delete-task-row]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId=button.dataset.deleteParent; const item=project()?.tasks.find(t=>t.id===button.dataset.deleteTaskRow); if(item)askDelete("task",item); });
   document.querySelectorAll("[data-toggle-task]").forEach(button=>button.onclick=event=>{event.stopPropagation();const id=button.dataset.toggleTask;state.visibleHierarchyLevel=0;state.collapsedTasks.has(id)?state.collapsedTasks.delete(id):state.collapsedTasks.add(id);button.dataset.toggleHome?renderHomeGantt():renderGantt();});
-  document.querySelectorAll("[data-home-toggle]").forEach(button=>button.addEventListener("click",()=>{state.visibleHierarchyLevel=0;document.querySelectorAll("[data-hierarchy-level]").forEach(control=>control.classList.remove("active"));}));
+  document.querySelectorAll("[data-home-toggle]").forEach(button=>button.addEventListener("click",()=>{const id=button.dataset.homeToggle;if(state.homeCollapsedProjects.has(id))state.shallowExpandedProjects.add(id);state.visibleHierarchyLevel=0;document.querySelectorAll("[data-hierarchy-level]").forEach(control=>control.classList.remove("active"));},true));
 }
 function openWriting(type, projectId, taskId = "") {
   const p = state.projects.find(item => item.id === projectId), task = p?.tasks.find(item => item.id === taskId), item = type === "task" ? task : p; if (!item) return;
@@ -533,6 +535,7 @@ function setup() {
   $("chartAddProject").onclick=()=>openProject();
   document.querySelectorAll("[data-hierarchy-level]").forEach(button=>button.onclick=()=>showHierarchyLevel(Number(button.dataset.hierarchyLevel)));
   $("blockViewToggle").onclick=()=>{state.blockView=!state.blockView;$("blockViewToggle").classList.toggle("active",state.blockView);$("blockViewToggle").setAttribute("aria-pressed",String(state.blockView));render();};
+  $("nextSevenToggle").onclick=()=>{state.nextSevenDays=!state.nextSevenDays;$("nextSevenToggle").classList.toggle("active",state.nextSevenDays);$("nextSevenToggle").setAttribute("aria-pressed",String(state.nextSevenDays));renderHomeGantt();};
   $("menuButton").onclick=()=>$("sidebar").classList.toggle("open");
   document.querySelectorAll(".mobile-view-switch").forEach(switcher => switcher.onclick = event => { const button = event.target.closest("[data-mobile-view]"); if (button) setMobileView(switcher.closest("section"), button.dataset.mobileView); });
   document.addEventListener("click", event => { if(!event.target.closest(".row-actions"))closeChartContextMenus();const cell = event.target.closest(".gantt-cell"); if (cell) createTaskFromCell(cell); });

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=1.7.31">
+  <link rel="stylesheet" href="styles.css?v=1.7.32">
 </head>
 <body>
   <div class="app">
@@ -29,7 +29,7 @@
 
       <div class="content">
         <section class="gantt-home" id="welcome">
-          <div class="home-heading"><div class="home-toolbar-actions"><button class="primary chart-add-project" id="chartAddProject">＋ Parent</button><div class="level-controls" aria-label="Visible hierarchy level"><button data-hierarchy-level="1">1st Level</button><button class="active" data-hierarchy-level="2">2nd Level</button><button data-hierarchy-level="3">3rd Level</button><button data-hierarchy-level="4">4th Level</button><button id="blockViewToggle" type="button" aria-pressed="false" title="Show solid date blocks">Blocks</button></div><button class="home-filter-button" id="homeFilterButton">≡ Filter <i id="homeFilterDot" hidden></i></button><div class="zoom"><button id="homeZoomOut">−</button><span id="homeZoomLabel">Week</span><button id="homeZoomIn">＋</button></div></div><p class="eyebrow">ALL PARENTS</p><small id="homeSummary" hidden>No parents yet</small></div>
+          <div class="home-heading"><div class="home-toolbar-actions"><button class="primary chart-add-project" id="chartAddProject">＋ Parent</button><div class="level-controls" aria-label="Visible hierarchy level"><button data-hierarchy-level="1">1st Level</button><button class="active" data-hierarchy-level="2">2nd Level</button><button data-hierarchy-level="3">3rd Level</button><button data-hierarchy-level="4">4th Level</button><button id="nextSevenToggle" type="button" aria-pressed="false" title="Show nodes dated within the next seven days">Next 7 Days</button><button id="blockViewToggle" type="button" aria-pressed="false" title="Show solid date blocks">Blocks</button></div><button class="home-filter-button" id="homeFilterButton">≡ Filter <i id="homeFilterDot" hidden></i></button><div class="zoom"><button id="homeZoomOut">−</button><span id="homeZoomLabel">Week</span><button id="homeZoomIn">＋</button></div></div><p class="eyebrow">ALL PARENTS</p><small id="homeSummary" hidden>No parents yet</small></div>
           <div class="filters home-filters" id="homeFilters" hidden><label>Status<select id="homeStatusFilter"><option value="all">All statuses</option><option>To do</option><option>In progress</option><option>Review</option><option>Done</option></select></label><label>Date<select id="homeDateFilter"><option value="all">All dates</option><option value="today">Current day</option><option value="today-plus-one">Current day + 1</option></select></label><button id="clearHomeFilter">Clear</button></div>
           <div class="timeline-pane"><div class="swipe-hint" aria-hidden="true">Swipe for dates <span>&rarr;</span></div><div class="gantt-wrap home-gantt" id="homeGantt"></div>
           <div class="legend home-legend"><span><i class="todo"></i>To do</span><span><i class="doing"></i>In progress</span><span><i class="review"></i>Review</span><span><i class="done"></i>Done</span></div></div>
@@ -92,6 +92,6 @@
   <div class="confirm" id="migrationModal" hidden><div><h3>Back up and migrate?</h3><p>Your existing projects are stored only in this browser. Northstar will first download a dated JSON backup, then copy the data to Supabase. Keep the downloaded file somewhere safe.</p><footer><button class="secondary" id="migrationLater">Not now</button><button class="primary" id="migrationStart">Back up &amp; migrate</button></footer></div></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="app.js?v=1.7.31"></script>
+  <script src="app.js?v=1.7.32"></script>
 </body>
 </html>
