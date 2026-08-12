@@ -1,7 +1,7 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
 const URL_STORAGE_KEY = "northstar-node-urls-v1";
-const APP_VERSION = "1.7.49";
+const APP_VERSION = "1.7.50";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -213,8 +213,9 @@ function renderAndroidTree(container, projects, tasks, includeProjects=true) {
   let html=`<div class="android-tree"><div class="android-level-controls" aria-label="Visible hierarchy level">${[1,2,3,4].map(value=>`<button class="${level===value?"active":""}" data-android-level="${value}">${value}${value===1?"st":value===2?"nd":value===3?"rd":"th"} Level</button>`).join("")}</div>`;
   projects.forEach(parent=>{
     const projectTasks=parent.tasks.filter(task=>taskIds.has(task.id));
-    if(includeProjects)html+=`<section class="android-node android-level-1"><div class="android-node-main"><i style="background:${parent.color}"></i><div><b>${esc(parent.name)}</b><small>Parent${parent.start?` · ${formatDate(parent.start)}`:""}</small></div></div>${androidNodeActions(parent.id)}</section>`;
-    if(level>(includeProjects?1:0))hierarchicalTasks(projectTasks,false).filter(task=>taskDepth(task,parent.tasks)+(includeProjects?2:1)<=level).forEach(task=>{const depth=taskDepth(task,parent.tasks);html+=`<section class="android-node android-level-${depth+(includeProjects?2:1)}" style="--android-depth:${depth+(includeProjects?1:0)}"><div class="android-node-main"><span class="task-status-dot ${statusClass(task.status)}"></span><div><b>${esc(task.name)}</b><small>${esc(task.status)}${task.owner?` · ${esc(task.owner)}`:""}${task.start?` · ${formatDate(task.start)}`:""}</small></div></div>${androidNodeActions(parent.id,task)}</section>`;});
+    const projectHasChildren=projectTasks.length>0;
+    if(includeProjects)html+=`<div class="android-tree-row parent" style="--android-depth:0">${projectHasChildren?'<span class="android-chevron"></span>':'<span class="android-chevron empty"></span>'}<b>${esc(parent.name)}</b>${parent.start?`<small>${dayDiff(todayIso(),parent.start)}</small>`:""}</div>`;
+    if(level>(includeProjects?1:0))hierarchicalTasks(projectTasks,false).filter(task=>taskDepth(task,parent.tasks)+(includeProjects?2:1)<=level).forEach(task=>{const depth=taskDepth(task,parent.tasks),hasChildren=parent.tasks.some(child=>child.parentId===task.id),distance=task.start?dayDiff(todayIso(),task.start):"";html+=`<div class="android-tree-row ${hasChildren?"parent":""} ${isPastNode(task)?"past":""}" style="--android-depth:${depth+(includeProjects?1:0)}">${hasChildren?'<span class="android-chevron"></span>':'<span class="android-chevron empty"></span>'}<b>${esc(task.name)}</b>${distance!==""?`<small>${distance}</small>`:""}</div>`;});
   });
   container.innerHTML=html+`</div>`;
   container.querySelectorAll("[data-android-level]").forEach(button=>button.onclick=()=>{state.visibleHierarchyLevel=Number(button.dataset.androidLevel);document.querySelectorAll("[data-hierarchy-level]").forEach(control=>control.classList.toggle("active",Number(control.dataset.hierarchyLevel)===state.visibleHierarchyLevel));render();});
