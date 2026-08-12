@@ -297,3 +297,9 @@ button,input,select,textarea{font-size:16px}
 .gantt-grid .bar,.home-grid [data-home-bar],.home-grid .project-bar{height:20px;font:700 15px/1 Arial,Helvetica,sans-serif;white-space:nowrap}
 .gantt-grid .bar.show-balloon{height:20px!important;white-space:nowrap!important}
 .gantt-grid .bar.show-balloon:after{width:max-content!important;min-width:100%!important;max-width:none!important;max-height:none!important;padding:3px 7px!important;white-space:nowrap!important;overflow:visible!important;font:700 15px/1 Arial,Helvetica,sans-serif!important}
+
+/* A wider TODAY heading and a light-green current-day column. */
+.gantt-grid .day.today{background:#cfe9c9;color:#173b2e}
+.gantt-grid .day.today small{color:#173b2e;white-space:nowrap;overflow:visible}
+.gantt-grid .gantt-cell.today-column{background:#e7f5e3}
+.gantt-grid .gantt-cell.weekend.today-column{background:#dcebd8}
