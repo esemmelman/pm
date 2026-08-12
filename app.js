@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.7.26";
+const APP_VERSION = "1.7.27";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -236,8 +236,8 @@ function scrollTimelineToToday(wrap) {
   requestAnimationFrame(() => {
     const today = wrap.querySelector(".day.today"), label = wrap.querySelector(".gantt-corner");
     if (!today) return;
-    const labelWidth=label?.offsetWidth||0,dayWidth=today.offsetWidth||0,visibleCalendarWidth=Math.max(dayWidth,wrap.clientWidth-labelWidth);
-    wrap.scrollLeft=Math.max(0,today.offsetLeft-labelWidth-(visibleCalendarWidth-dayWidth)/2);
+    const labelWidth=label?.offsetWidth||0;
+    wrap.scrollLeft=Math.max(0,today.offsetLeft-labelWidth);
   });
 }
 function expandTodayColumn(wrap) {
@@ -249,6 +249,7 @@ function expandTodayColumn(wrap) {
     if (!column || tracks.length < column) return;
     tracks[column - 1] = `${Math.max(62, today.offsetWidth)}px`;
     grid.style.gridTemplateColumns = tracks.join(" ");
+    grid.querySelectorAll(".gantt-cell").forEach(cell=>cell.classList.toggle("today-column",parseInt(cell.style.gridColumn,10)===column));
   });
 }
 function setMobileView(section, view) {
