@@ -1,6 +1,7 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
-const APP_VERSION = "1.7.38";
+const URL_STORAGE_KEY = "northstar-node-urls-v1";
+const APP_VERSION = "1.7.39";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -11,6 +12,7 @@ const esc = value => { const el = document.createElement("span"); el.textContent
 const plainText = value => { const el = document.createElement("div"); el.innerHTML = value || ""; return el.textContent || ""; };
 const isPastNode=item=>!!(item?.start&&item?.end&&item.start<todayIso()&&item.end<todayIso());
 const loadNodeLogs=()=>{try{return JSON.parse(localStorage.getItem(LOG_STORAGE_KEY)||"{}");}catch{return {};}};
+const loadNodeUrls=()=>{try{return JSON.parse(localStorage.getItem(URL_STORAGE_KEY)||"{}");}catch{return {};}};
 function addLogRow(entry={date:todayIso(),text:""}){const row=document.createElement("div");row.className="log-row";row.innerHTML=`<input type="date" value="${esc(entry.date||todayIso())}" aria-label="Log date"><textarea rows="2" aria-label="Log entry">${esc(entry.text||"")}</textarea><button type="button" class="log-remove" aria-label="Remove log entry">×</button>`;row.querySelector(".log-remove").onclick=()=>row.remove();$("logRows").append(row);}
 function openNodeLog(key,title){const logs=loadNodeLogs();$("logNodeKey").value=key;$("logTitle").textContent=title;$("logRows").innerHTML="";(logs[key]||[]).forEach(addLogRow);if(!$("logRows").children.length)addLogRow();$("logModal").hidden=false;}
 function linkifyDocumentHtml(value) {
@@ -327,11 +329,14 @@ function decorateChartRows() {
     const actions = document.createElement("span"); actions.className = "row-actions";
     const edit = row.querySelector(".row-edit");
     let scheduledItem;
+    const urlKey = taskId ? `task:${projectId}:${taskId}` : `project:${projectId}`;
+    const nodeUrls = loadNodeUrls()[urlKey] || [];
     if (!taskId) {
       scheduledItem = state.projects.find(item=>item.id===projectId);
       row.classList.add("tree-level-1");
       actions.append(chartAction("Document", `document ${hasWriting(scheduledItem.description)?"has-content":""}`, "Open project document", { openDocument:"project", documentProject:projectId }));
       actions.append(chartAction("Add URL", "url", "Add URL link", { addUrl:"project", urlProject:projectId }));
+      nodeUrls.forEach((link,index)=>actions.append(chartAction(`↗ ${link.label || link.url}`, "url-link", `Open ${link.label || link.url}`, { openUrl:link.url, urlIndex:index })));
       actions.append(chartAction("Log", "log", "Open parent log", { openLog:`project:${projectId}`, logTitle:scheduledItem.name }));
       if (edit) actions.append(edit);
       actions.append(chartAction("Add child", "add", "Add child", { addRoot:projectId }));
@@ -344,6 +349,7 @@ function decorateChartRows() {
       if(hasChildren){const toggle=chartAction(state.collapsedTasks.has(taskId)?"›":"⌄","node-toggle",state.collapsedTasks.has(taskId)?"Expand children":"Collapse children",{toggleTask:taskId,toggleHome:row.dataset.homeTask?"1":""});row.insertBefore(toggle,row.querySelector(".row-title"));}
       actions.append(chartAction("Document", `document ${hasWriting(task?.notes)?"has-content":""}`, "Open node document", { openDocument:"task", documentProject:projectId, documentTask:taskId }));
       actions.append(chartAction("Add URL", "url", "Add URL link", { addUrl:"task", urlProject:projectId, urlTask:taskId }));
+      nodeUrls.forEach((link,index)=>actions.append(chartAction(`↗ ${link.label || link.url}`, "url-link", `Open ${link.label || link.url}`, { openUrl:link.url, urlIndex:index })));
       actions.append(chartAction("Log", "log", "Open child log", { openLog:`task:${projectId}:${taskId}`, logTitle:task.name }));
       if (edit) actions.append(edit);
       if (task && depth < 2) actions.append(chartAction("Add child", "add", "Add child", { addChild:taskId, addChildProject:projectId }));
@@ -369,6 +375,7 @@ function wireWritingRows() {
   document.querySelectorAll("[data-add-child]").forEach(button => button.onclick = event => { event.stopPropagation(); if(button.dataset.addChildProject)state.activeProjectId=button.dataset.addChildProject; openTask(null, null, button.dataset.addChild); });
   document.querySelectorAll("[data-open-document]").forEach(button => button.onclick = event => { event.stopPropagation(); openWriting(button.dataset.openDocument, button.dataset.documentProject, button.dataset.documentTask || ""); });
   document.querySelectorAll("[data-add-url]").forEach(button => button.onclick = event => { event.stopPropagation(); addNodeUrl(button.dataset.addUrl, button.dataset.urlProject, button.dataset.urlTask || ""); });
+  document.querySelectorAll("[data-open-url]").forEach(button => button.onclick = event => { event.stopPropagation(); closeChartContextMenus(); window.open(button.dataset.openUrl, "_blank", "noopener,noreferrer"); });
   document.querySelectorAll("[data-open-log]").forEach(button=>button.onclick=event=>{event.stopPropagation();closeChartContextMenus();openNodeLog(button.dataset.openLog,button.dataset.logTitle);});
   document.querySelectorAll("[data-delete-project-row]").forEach(button => button.onclick = event => { event.stopPropagation(); const item=state.projects.find(p=>p.id===button.dataset.deleteProjectRow); if(item)askDelete("project",item); });
   document.querySelectorAll("[data-delete-task-row]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId=button.dataset.deleteParent; const item=project()?.tasks.find(t=>t.id===button.dataset.deleteTaskRow); if(item)askDelete("task",item); });
@@ -393,10 +400,10 @@ function addNodeUrl(type, projectId, taskId = "") {
   if (!['http:', 'https:'].includes(parsed.protocol)) { toast("Only http and https URLs are supported"); return; }
   const label = window.prompt("Link text:", parsed.hostname || href);
   if (label === null) return;
-  const current = type === "task" ? (task.notes || "") : (parent.description || ""), spacer = hasWriting(current) ? "<p><br></p>" : "";
-  const link = `<p><a href="${esc(parsed.href)}" target="_blank" rel="noopener noreferrer">${esc(label.trim() || parsed.hostname || parsed.href)}</a></p>`;
-  if (type === "task") task.notes = `${current}${spacer}${link}`; else parent.description = `${current}${spacer}${link}`;
-  persist(); render(); toast("URL added");
+  const key = type === "task" ? `task:${projectId}:${taskId}` : `project:${projectId}`, urls = loadNodeUrls();
+  urls[key] = [...(urls[key] || []), { url:parsed.href, label:label.trim() || parsed.hostname || parsed.href }];
+  localStorage.setItem(URL_STORAGE_KEY, JSON.stringify(urls));
+  render(); toast("URL added");
 }
 function updateMobileDrag(bar, item, shift) {
   if (!matchMedia("(max-width:620px)").matches || !item) return;
