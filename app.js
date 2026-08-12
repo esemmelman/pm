@@ -1,7 +1,7 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
 const URL_STORAGE_KEY = "northstar-node-urls-v1";
-const APP_VERSION = "1.7.59";
+const APP_VERSION = "1.7.60";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -441,6 +441,11 @@ function insertDesktopParentBlankRows(wrap) {
   const labels=[...grid.querySelectorAll(".task-label")].sort((a,b)=>parseInt(a.style.gridRow,10)-parseInt(b.style.gridRow,10));
   const parents=labels.filter(label=>{if(label.dataset.homeProject)return true;const projectId=label.dataset.homeParent||state.activeProjectId,taskId=label.dataset.homeTask||label.dataset.task,parent=state.projects.find(item=>item.id===projectId);return !!taskId&&parent?.tasks.some(task=>task.parentId===taskId);});
   parents.slice(1).forEach(label=>{const targetRow=parseInt(label.style.gridRow,10);[...grid.children].forEach(element=>{const row=parseInt(element.style.gridRow,10);if(Number.isFinite(row)&&row>=targetRow)element.style.gridRow=String(row+1);});const blankLabel=document.createElement("div");blankLabel.className="task-label desktop-blank-label";blankLabel.style.gridColumn="1";blankLabel.style.gridRow=String(targetRow);grid.append(blankLabel);const days=Number(getComputedStyle(grid).getPropertyValue("--days"));for(let index=0;index<days;index++){const column=index+2,header=[...grid.querySelectorAll(".day")].find(day=>parseInt(day.style.gridColumn,10)===column),cell=document.createElement("div");cell.className=`gantt-cell desktop-blank-cell ${header?.classList.contains("weekend")?"weekend":""} ${header?.classList.contains("today")?"today-column":""}`;cell.style.gridColumn=String(column);cell.style.gridRow=String(targetRow);grid.append(cell);}});
+  shadeDesktopParentGroups(grid);
+}
+function shadeDesktopParentGroups(grid) {
+  const topParents=[...grid.querySelectorAll(".task-label")].filter(label=>{if(label.dataset.homeProject)return true;if(!label.dataset.task)return false;const task=project()?.tasks.find(item=>item.id===label.dataset.task);return task&&taskDepth(task,project()?.tasks||[])===0;}).sort((a,b)=>parseInt(a.style.gridRow,10)-parseInt(b.style.gridRow,10));
+  topParents.forEach((label,index)=>{const start=parseInt(label.style.gridRow,10),next=topParents[index+1],end=next?parseInt(next.style.gridRow,10)-1:Infinity,tone=`desktop-group-${index%2===0?"a":"b"}`;[...grid.children].forEach(element=>{const row=parseInt(element.style.gridRow,10);if(row>=start&&row<end&&!element.classList.contains("desktop-blank-label")&&!element.classList.contains("desktop-blank-cell"))element.classList.add(tone);});});
 }
 function openWriting(type, projectId, taskId = "") {
   const p = state.projects.find(item => item.id === projectId), task = p?.tasks.find(item => item.id === taskId), item = type === "task" ? task : p; if (!item) return;
