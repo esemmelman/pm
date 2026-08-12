@@ -1,7 +1,7 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
 const URL_STORAGE_KEY = "northstar-node-urls-v1";
-const APP_VERSION = "1.7.50";
+const APP_VERSION = "1.7.51";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -214,11 +214,14 @@ function renderAndroidTree(container, projects, tasks, includeProjects=true) {
   projects.forEach(parent=>{
     const projectTasks=parent.tasks.filter(task=>taskIds.has(task.id));
     const projectHasChildren=projectTasks.length>0;
-    if(includeProjects)html+=`<div class="android-tree-row parent" style="--android-depth:0">${projectHasChildren?'<span class="android-chevron"></span>':'<span class="android-chevron empty"></span>'}<b>${esc(parent.name)}</b>${parent.start?`<small>${dayDiff(todayIso(),parent.start)}</small>`:""}</div>`;
-    if(level>(includeProjects?1:0))hierarchicalTasks(projectTasks,false).filter(task=>taskDepth(task,parent.tasks)+(includeProjects?2:1)<=level).forEach(task=>{const depth=taskDepth(task,parent.tasks),hasChildren=parent.tasks.some(child=>child.parentId===task.id),distance=task.start?dayDiff(todayIso(),task.start):"";html+=`<div class="android-tree-row ${hasChildren?"parent":""} ${isPastNode(task)?"past":""}" style="--android-depth:${depth+(includeProjects?1:0)}">${hasChildren?'<span class="android-chevron"></span>':'<span class="android-chevron empty"></span>'}<b>${esc(task.name)}</b>${distance!==""?`<small>${distance}</small>`:""}</div>`;});
+    const projectCollapsed=includeProjects&&state.homeCollapsedProjects.has(parent.id);
+    if(includeProjects)html+=`<div class="android-tree-row parent" style="--android-depth:0">${projectHasChildren?`<button class="android-chevron ${projectCollapsed?"collapsed":""}" data-android-project-toggle="${parent.id}" aria-label="${projectCollapsed?"Expand":"Collapse"} ${esc(parent.name)}"></button>`:'<span class="android-chevron empty"></span>'}<b>${esc(parent.name)}</b>${parent.start?`<small>${dayDiff(todayIso(),parent.start)}</small>`:""}</div>`;
+    if(!projectCollapsed&&level>(includeProjects?1:0))hierarchicalTasks(projectTasks,false).filter(task=>{if(taskDepth(task,parent.tasks)+(includeProjects?2:1)>level)return false;let current=task;while(current?.parentId){if(state.collapsedTasks.has(current.parentId))return false;current=parent.tasks.find(item=>item.id===current.parentId);}return true;}).forEach(task=>{const depth=taskDepth(task,parent.tasks),hasChildren=parent.tasks.some(child=>child.parentId===task.id),collapsed=state.collapsedTasks.has(task.id),distance=task.start?dayDiff(todayIso(),task.start):"";html+=`<div class="android-tree-row ${hasChildren?"parent":""} ${isPastNode(task)?"past":""}" style="--android-depth:${depth+(includeProjects?1:0)}">${hasChildren?`<button class="android-chevron ${collapsed?"collapsed":""}" data-android-task-toggle="${task.id}" aria-label="${collapsed?"Expand":"Collapse"} ${esc(task.name)}"></button>`:'<span class="android-chevron empty"></span>'}<b>${esc(task.name)}</b>${distance!==""?`<small>${distance}</small>`:""}</div>`;});
   });
   container.innerHTML=html+`</div>`;
   container.querySelectorAll("[data-android-level]").forEach(button=>button.onclick=()=>{state.visibleHierarchyLevel=Number(button.dataset.androidLevel);document.querySelectorAll("[data-hierarchy-level]").forEach(control=>control.classList.toggle("active",Number(control.dataset.hierarchyLevel)===state.visibleHierarchyLevel));render();});
+  container.querySelectorAll("[data-android-project-toggle]").forEach(button=>button.onclick=()=>{const id=button.dataset.androidProjectToggle;state.homeCollapsedProjects.has(id)?state.homeCollapsedProjects.delete(id):state.homeCollapsedProjects.add(id);render();});
+  container.querySelectorAll("[data-android-task-toggle]").forEach(button=>button.onclick=()=>{const id=button.dataset.androidTaskToggle;state.collapsedTasks.has(id)?state.collapsedTasks.delete(id):state.collapsedTasks.add(id);render();});
   wireWritingRows();
 }
 function renderHomeGantt() {
