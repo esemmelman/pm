@@ -1,7 +1,7 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
 const URL_STORAGE_KEY = "northstar-node-urls-v1";
-const APP_VERSION = "1.7.39";
+const APP_VERSION = "1.7.40";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -15,6 +15,9 @@ const loadNodeLogs=()=>{try{return JSON.parse(localStorage.getItem(LOG_STORAGE_K
 const loadNodeUrls=()=>{try{return JSON.parse(localStorage.getItem(URL_STORAGE_KEY)||"{}");}catch{return {};}};
 function addLogRow(entry={date:todayIso(),text:""}){const row=document.createElement("div");row.className="log-row";row.innerHTML=`<input type="date" value="${esc(entry.date||todayIso())}" aria-label="Log date"><textarea rows="2" aria-label="Log entry">${esc(entry.text||"")}</textarea><button type="button" class="log-remove" aria-label="Remove log entry">×</button>`;row.querySelector(".log-remove").onclick=()=>row.remove();$("logRows").append(row);}
 function openNodeLog(key,title){const logs=loadNodeLogs();$("logNodeKey").value=key;$("logTitle").textContent=title;$("logRows").innerHTML="";(logs[key]||[]).forEach(addLogRow);if(!$("logRows").children.length)addLogRow();$("logModal").hidden=false;}
+function addUrlRow(entry={label:"",url:""}){const row=document.createElement("div");row.className="url-row";row.innerHTML=`<input type="text" value="${esc(entry.label||"")}" aria-label="Link name" placeholder="Link name"><input type="url" value="${esc(entry.url||"")}" aria-label="URL" placeholder="https://example.com"><button type="button" class="url-open" aria-label="Open URL" title="Open URL">↗</button><button type="button" class="url-remove" aria-label="Remove URL">×</button>`;row.querySelector(".url-remove").onclick=()=>row.remove();row.querySelector(".url-open").onclick=()=>{const input=row.querySelector('input[type="url"]'),value=input.value.trim();if(!value)return;let parsed;try{parsed=new URL(normalizeNodeUrl(value));}catch{toast("Enter a valid URL");input.focus();return;}if(!['http:','https:'].includes(parsed.protocol)){toast("Only http and https URLs are supported");input.focus();return;}window.open(parsed.href,"_blank","noopener,noreferrer");};$("urlRows").append(row);}
+function normalizeNodeUrl(value){const entered=value.trim();return /^[a-z][a-z\d+.-]*:/i.test(entered)?entered:`https://${entered}`;}
+function openNodeUrls(key,title){const urls=loadNodeUrls();$("urlNodeKey").value=key;$("urlTitle").textContent=title;$("urlRows").innerHTML="";(urls[key]||[]).forEach(addUrlRow);if(!$("urlRows").children.length)addUrlRow();$("urlModal").hidden=false;}
 function linkifyDocumentHtml(value) {
   const root = document.createElement("div");
   root.innerHTML = value || "";
@@ -330,13 +333,11 @@ function decorateChartRows() {
     const edit = row.querySelector(".row-edit");
     let scheduledItem;
     const urlKey = taskId ? `task:${projectId}:${taskId}` : `project:${projectId}`;
-    const nodeUrls = loadNodeUrls()[urlKey] || [];
     if (!taskId) {
       scheduledItem = state.projects.find(item=>item.id===projectId);
       row.classList.add("tree-level-1");
       actions.append(chartAction("Document", `document ${hasWriting(scheduledItem.description)?"has-content":""}`, "Open project document", { openDocument:"project", documentProject:projectId }));
-      actions.append(chartAction("Add URL", "url", "Add URL link", { addUrl:"project", urlProject:projectId }));
-      nodeUrls.forEach((link,index)=>actions.append(chartAction(`↗ ${link.label || link.url}`, "url-link", `Open ${link.label || link.url}`, { openUrl:link.url, urlIndex:index })));
+      actions.append(chartAction("URLs", "url", "Manage URL links", { openUrls:urlKey, urlTitle:scheduledItem.name }));
       actions.append(chartAction("Log", "log", "Open parent log", { openLog:`project:${projectId}`, logTitle:scheduledItem.name }));
       if (edit) actions.append(edit);
       actions.append(chartAction("Add child", "add", "Add child", { addRoot:projectId }));
@@ -348,8 +349,7 @@ function decorateChartRows() {
       row.classList.add(`tree-level-${depth+2}`);
       if(hasChildren){const toggle=chartAction(state.collapsedTasks.has(taskId)?"›":"⌄","node-toggle",state.collapsedTasks.has(taskId)?"Expand children":"Collapse children",{toggleTask:taskId,toggleHome:row.dataset.homeTask?"1":""});row.insertBefore(toggle,row.querySelector(".row-title"));}
       actions.append(chartAction("Document", `document ${hasWriting(task?.notes)?"has-content":""}`, "Open node document", { openDocument:"task", documentProject:projectId, documentTask:taskId }));
-      actions.append(chartAction("Add URL", "url", "Add URL link", { addUrl:"task", urlProject:projectId, urlTask:taskId }));
-      nodeUrls.forEach((link,index)=>actions.append(chartAction(`↗ ${link.label || link.url}`, "url-link", `Open ${link.label || link.url}`, { openUrl:link.url, urlIndex:index })));
+      actions.append(chartAction("URLs", "url", "Manage URL links", { openUrls:urlKey, urlTitle:task.name }));
       actions.append(chartAction("Log", "log", "Open child log", { openLog:`task:${projectId}:${taskId}`, logTitle:task.name }));
       if (edit) actions.append(edit);
       if (task && depth < 2) actions.append(chartAction("Add child", "add", "Add child", { addChild:taskId, addChildProject:projectId }));
@@ -374,8 +374,7 @@ function wireWritingRows() {
   document.querySelectorAll("[data-add-root]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId=button.dataset.addRoot; persist(); render(); openTask(); });
   document.querySelectorAll("[data-add-child]").forEach(button => button.onclick = event => { event.stopPropagation(); if(button.dataset.addChildProject)state.activeProjectId=button.dataset.addChildProject; openTask(null, null, button.dataset.addChild); });
   document.querySelectorAll("[data-open-document]").forEach(button => button.onclick = event => { event.stopPropagation(); openWriting(button.dataset.openDocument, button.dataset.documentProject, button.dataset.documentTask || ""); });
-  document.querySelectorAll("[data-add-url]").forEach(button => button.onclick = event => { event.stopPropagation(); addNodeUrl(button.dataset.addUrl, button.dataset.urlProject, button.dataset.urlTask || ""); });
-  document.querySelectorAll("[data-open-url]").forEach(button => button.onclick = event => { event.stopPropagation(); closeChartContextMenus(); window.open(button.dataset.openUrl, "_blank", "noopener,noreferrer"); });
+  document.querySelectorAll("[data-open-urls]").forEach(button => button.onclick = event => { event.stopPropagation(); closeChartContextMenus(); openNodeUrls(button.dataset.openUrls,button.dataset.urlTitle); });
   document.querySelectorAll("[data-open-log]").forEach(button=>button.onclick=event=>{event.stopPropagation();closeChartContextMenus();openNodeLog(button.dataset.openLog,button.dataset.logTitle);});
   document.querySelectorAll("[data-delete-project-row]").forEach(button => button.onclick = event => { event.stopPropagation(); const item=state.projects.find(p=>p.id===button.dataset.deleteProjectRow); if(item)askDelete("project",item); });
   document.querySelectorAll("[data-delete-task-row]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId=button.dataset.deleteParent; const item=project()?.tasks.find(t=>t.id===button.dataset.deleteTaskRow); if(item)askDelete("task",item); });
@@ -385,25 +384,6 @@ function wireWritingRows() {
 function openWriting(type, projectId, taskId = "") {
   const p = state.projects.find(item => item.id === projectId), task = p?.tasks.find(item => item.id === taskId), item = type === "task" ? task : p; if (!item) return;
   $("writingType").value = type; $("writingProjectId").value = projectId; $("writingTaskId").value = taskId; $("writingLabel").textContent = type === "task" ? "TASK NOTES" : "PROJECT NOTES"; $("writingTitle").textContent = item.name; $("writingEditor").innerHTML = linkifyDocumentHtml(type === "task" ? (task.notes || "") : (p.description || "")); $("writingModal").hidden = false; setTimeout(() => $("writingEditor").focus(), 30);
-}
-function addNodeUrl(type, projectId, taskId = "") {
-  closeChartContextMenus();
-  const parent = state.projects.find(item => item.id === projectId), task = parent?.tasks.find(item => item.id === taskId), item = type === "task" ? task : parent;
-  if (!item) return;
-  const entered = window.prompt(`Add a URL to ${item.name}:`, "https://");
-  if (entered === null) return;
-  let href = entered.trim();
-  if (!href) return;
-  if (!/^[a-z][a-z\d+.-]*:/i.test(href)) href = `https://${href}`;
-  let parsed;
-  try { parsed = new URL(href); } catch { toast("Enter a valid URL"); return; }
-  if (!['http:', 'https:'].includes(parsed.protocol)) { toast("Only http and https URLs are supported"); return; }
-  const label = window.prompt("Link text:", parsed.hostname || href);
-  if (label === null) return;
-  const key = type === "task" ? `task:${projectId}:${taskId}` : `project:${projectId}`, urls = loadNodeUrls();
-  urls[key] = [...(urls[key] || []), { url:parsed.href, label:label.trim() || parsed.hostname || parsed.href }];
-  localStorage.setItem(URL_STORAGE_KEY, JSON.stringify(urls));
-  render(); toast("URL added");
 }
 function updateMobileDrag(bar, item, shift) {
   if (!matchMedia("(max-width:620px)").matches || !item) return;
@@ -588,6 +568,8 @@ function setup() {
   document.querySelectorAll("[data-format]").forEach(button => button.onclick = () => { $("writingEditor").focus(); document.execCommand(button.dataset.format, false); });
   $("logAddRow").onclick=()=>addLogRow();
   $("logForm").onsubmit=event=>{event.preventDefault();const logs=loadNodeLogs(),key=$("logNodeKey").value;logs[key]=[...$("logRows").querySelectorAll(".log-row")].map(row=>({date:row.querySelector("input").value,text:row.querySelector("textarea").value.trim()})).filter(entry=>entry.date||entry.text);localStorage.setItem(LOG_STORAGE_KEY,JSON.stringify(logs));closeModals();toast("Log saved");};
+  $("urlAddRow").onclick=()=>addUrlRow();
+  $("urlForm").onsubmit=event=>{event.preventDefault();const urls=loadNodeUrls(),key=$("urlNodeKey").value,entries=[];for(const row of $("urlRows").querySelectorAll(".url-row")){const label=row.querySelector('input[type="text"]').value.trim(),raw=row.querySelector('input[type="url"]').value.trim();if(!raw)continue;let parsed;try{parsed=new URL(normalizeNodeUrl(raw));}catch{toast("Enter a valid URL");row.querySelector('input[type="url"]').focus();return;}if(!['http:','https:'].includes(parsed.protocol)){toast("Only http and https URLs are supported");row.querySelector('input[type="url"]').focus();return;}entries.push({label:label||parsed.hostname||parsed.href,url:parsed.href});}urls[key]=entries;localStorage.setItem(URL_STORAGE_KEY,JSON.stringify(urls));closeModals();render();toast("URLs saved");};
   $("writingEditor").addEventListener("click", event => {
     const link = event.target.closest("a[href]");
     if (!link) return;

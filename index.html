@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=1.7.39">
+  <link rel="stylesheet" href="styles.css?v=1.7.40">
 </head>
 <body>
   <div class="app">
@@ -95,6 +95,17 @@
     </form>
   </div>
 
+  <div class="backdrop" id="urlModal" hidden>
+    <form class="modal url-modal" id="urlForm">
+      <header><div><span class="eyebrow">NODE URLS</span><h2 id="urlTitle">URLs</h2></div><button type="button" data-close>×</button></header>
+      <input type="hidden" id="urlNodeKey">
+      <div class="url-head"><b>Link Name</b><b>URL</b><span></span><span></span></div>
+      <div id="urlRows" class="url-rows"></div>
+      <button type="button" class="secondary url-add" id="urlAddRow">＋ Add URL</button>
+      <footer><span></span><button type="button" class="secondary" data-close>Cancel</button><button class="primary" type="submit">Save URLs</button></footer>
+    </form>
+  </div>
+
   <div class="confirm" id="confirm" hidden><div><h3 id="confirmTitle">Delete project?</h3><p id="confirmText"></p><footer><button class="secondary" id="confirmCancel">Cancel</button><button class="danger-solid" id="confirmDelete">Delete</button></footer></div></div>
   <div class="toast" id="toast"></div>
   <div class="cell-tooltip" id="cellTooltip" role="tooltip" hidden></div>
@@ -103,6 +114,6 @@
   <div class="confirm" id="migrationModal" hidden><div><h3>Back up and migrate?</h3><p>Your existing projects are stored only in this browser. Northstar will first download a dated JSON backup, then copy the data to Supabase. Keep the downloaded file somewhere safe.</p><footer><button class="secondary" id="migrationLater">Not now</button><button class="primary" id="migrationStart">Back up &amp; migrate</button></footer></div></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="app.js?v=1.7.39"></script>
+  <script src="app.js?v=1.7.40"></script>
 </body>
 </html>

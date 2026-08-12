@@ -308,6 +308,7 @@ button,input,select,textarea{font-size:16px}
 /* Optional simplified schedule view: solid, unlabeled date blocks. */
 .gantt-grid.block-view .bar,.gantt-grid.block-view .bar.show-balloon{font-size:0!important;color:transparent!important;overflow:hidden!important}
 .gantt-grid.block-view .bar.show-balloon:after{display:none!important;content:none!important}
+.url-modal{width:min(820px,calc(100vw - 30px))}.url-head,.url-row{display:grid;grid-template-columns:210px minmax(260px,1fr) 34px 32px;gap:8px;align-items:center}.url-head{padding:0 4px 7px;font-size:13px}.url-rows{display:grid;gap:7px;max-height:55vh;overflow:auto}.url-row input{width:100%;height:38px;border:1px solid #aaa;border-radius:3px;padding:8px;font:15px Arial,Helvetica,sans-serif}.url-open,.url-remove{height:32px;border:0;background:transparent;cursor:pointer}.url-open{color:var(--green);font-size:18px}.url-remove{color:#a13d32;font-size:20px}.url-add{margin-top:10px}@media(max-width:620px){.url-head,.url-row{grid-template-columns:1fr 34px 30px}.url-head b:first-child,.url-row input[type="text"]{display:none}}
 .level-controls #blockViewToggle{border-left:1px solid var(--line);border-radius:0 6px 6px 0;padding-inline:10px}
 .level-controls #blockViewToggle.active{background:#173b2e;color:#fff}
 .level-controls #nextSevenToggle.active{background:#173b2e;color:#fff}
