@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.7.27";
+const APP_VERSION = "1.7.28";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -237,7 +237,7 @@ function scrollTimelineToToday(wrap) {
     const today = wrap.querySelector(".day.today"), label = wrap.querySelector(".gantt-corner");
     if (!today) return;
     const labelWidth=label?.offsetWidth||0;
-    wrap.scrollLeft=Math.max(0,today.offsetLeft-labelWidth);
+    wrap.scrollLeft=Math.max(0,today.offsetLeft-labelWidth-12);
   });
 }
 function expandTodayColumn(wrap) {
