@@ -1,5 +1,5 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.7.28";
+const APP_VERSION = "1.7.29";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -199,7 +199,7 @@ function renderHomeGantt() {
   renderAgenda($("homeAgenda"), tasks, true);
   const filtered = statusFilter !== "all" || dateFilter !== "all" || !!query; $("homeFilterDot").hidden = statusFilter === "all" && dateFilter === "all";
   const matchingProjects = new Set(tasks.map(task => task.projectId)).size;
-  $("homeSummary").textContent = state.projects.length ? `${matchingProjects} project${matchingProjects === 1 ? "" : "s"} · ${tasks.length} ${filtered ? "matching " : ""}task${tasks.length === 1 ? "" : "s"}` : "No projects yet";
+  $("homeSummary").textContent = state.projects.length ? `${matchingProjects} parent${matchingProjects === 1 ? "" : "s"} · ${tasks.length} ${filtered ? "matching " : ""}${tasks.length === 1 ? "child" : "children"}` : "No parents yet";
   if (!tasks.length && (!state.projects.length || filtered)) {
     $("homeGantt").innerHTML = filtered ? `<div class="empty-panel"><div>≡</div><h3>No matching tasks</h3><p>No tasks and projects match the selected filters.</p><button class="secondary home-clear-action">Clear filters</button></div>` : `<div class="empty-panel"><div>⌁</div><h3>${state.projects.length ? "No tasks on the timeline" : "Your Gantt chart is ready"}</h3><p>${state.projects.length ? "Open a project and add its first task." : "Create a project to begin building your master timeline."}</p><button class="primary home-empty-action">${state.projects.length ? "Open a project" : "＋ Create project"}</button></div>`;
     const clear = document.querySelector(".home-clear-action"); if (clear) clear.onclick = clearHomeFilters; else document.querySelector(".home-empty-action").onclick = () => state.projects.length ? openProjectView(state.projects[0].id) : openProject(); return;
@@ -257,11 +257,11 @@ function setMobileView(section, view) {
   section.querySelectorAll("[data-mobile-view]").forEach(button => { const active = button.dataset.mobileView === view; button.classList.toggle("active", active); button.setAttribute("aria-pressed", active); });
   if (view === "timeline") scrollTimelineToToday(section.querySelector(".gantt-wrap"));
 }
-function emptyPanel(title, copy) { return `<div class="empty-panel"><div>⌁</div><h3>${title}</h3><p>${copy}</p><button class="primary empty-add">＋ Add first task</button></div>`; }
+function emptyPanel(title, copy) { return `<div class="empty-panel"><div>⌁</div><h3>${title}</h3><p>${copy}</p><button class="primary empty-add">＋ Add first child</button></div>`; }
 function renderGantt() {
   const tasks = hierarchicalTasks(taskItems()), scheduledTasks=tasks.filter(task=>task.start&&task.end);
-  if (!project().tasks.length) { $("gantt").innerHTML = emptyPanel("Your timeline is ready", "Add a task with start and end dates to build your Gantt chart."); wireEmptyButtons(); return; }
-  if (!tasks.length) { $("gantt").innerHTML = `<div class="empty-panel"><h3>No matching tasks</h3><p>Try changing your search or filter.</p></div>`; return; }
+  if (!project().tasks.length) { $("gantt").innerHTML = emptyPanel("Your timeline is ready", "Add a child with start and end dates to build your Gantt chart."); wireEmptyButtons(); return; }
+  if (!tasks.length) { $("gantt").innerHTML = `<div class="empty-panel"><h3>No matching children</h3><p>Try changing your search or filter.</p></div>`; return; }
   const today = todayIso(), minTask = scheduledTasks.map(t => t.start).sort()[0]||today, maxTask = scheduledTasks.map(t => t.end).sort().at(-1)||addDays(today,30);
   const firstDate = [minTask, today].sort()[0], lastDate = [maxTask, today].sort().at(-1), start = parseDate(addDays(firstDate, -3)), end = parseDate(addDays(lastDate, 10)), days = dayDiff(toIso(start), toIso(end)) + 1, width = Math.round(25 * state.zoom);
   let html = `<div class="gantt-grid" data-chart-start="${toIso(start)}" style="--days:${days};--day-width:${width}px"><div class="gantt-corner" style="grid-column:1;grid-row:1 / span 2">TASK / OWNER</div>`;
@@ -318,8 +318,8 @@ function decorateChartRows() {
       row.classList.add("tree-level-1");
       actions.append(chartAction("Document", `document ${hasWriting(scheduledItem.description)?"has-content":""}`, "Open project document", { openDocument:"project", documentProject:projectId }));
       if (edit) actions.append(edit);
-      actions.append(chartAction("Add task", "add", "Add task", { addRoot:projectId }));
-      actions.append(chartAction("Delete", "delete", "Delete project", { deleteProjectRow:projectId }));
+      actions.append(chartAction("Add child", "add", "Add child", { addRoot:projectId }));
+      actions.append(chartAction("Delete", "delete", "Delete parent", { deleteProjectRow:projectId }));
     } else {
       const task = state.projects.find(item=>item.id===projectId)?.tasks.find(item=>item.id===taskId);
       scheduledItem = task;
@@ -400,14 +400,14 @@ function openProject(id = null, selectedDate = null) {
   $("sidebar").classList.remove("open");
   const p = state.projects.find(item => item.id === id); state.color = p?.color || "#dbe88f";
   $("projectId").value = p?.id || ""; $("projectNameInput").value = p?.name || ""; $("projectDescriptionInput").value = ""; $("projectStart").value = p?.start || selectedDate || ""; $("projectEnd").value = p?.end || selectedDate || "";
-  $("projectModalLabel").textContent = p ? "PROJECT SETTINGS" : "NEW PROJECT"; $("projectModalTitle").textContent = p ? "Edit project" : "Create a project";
+  $("projectModalLabel").textContent = p ? "PARENT SETTINGS" : "NEW PARENT"; $("projectModalTitle").textContent = p ? "Edit parent" : "Create a parent";
   document.querySelectorAll("[data-color]").forEach(b => b.classList.toggle("selected", b.dataset.color === state.color)); $("projectModal").hidden = false; setTimeout(() => $("projectNameInput").focus(), 30);
 }
 function openTask(id = null, selectedDate = null, parentId = "") {
   $("sidebar").classList.remove("open");
   const task = project()?.tasks.find(item => item.id === id); $("taskForm").reset(); $("taskId").value = task?.id || ""; $("taskNameInput").value = task?.name || ""; $("taskStatus").value = task?.status || "To do"; $("taskOwner").value = task?.owner || ""; $("taskStart").value = task?.start || selectedDate || ""; $("taskEnd").value = task?.end || selectedDate || ""; $("taskNotes").value = "";
   const allProjectTasks=project()?.tasks||[], eligibleParents = allProjectTasks.filter(item => item.id !== id && taskDepth(item,allProjectTasks)<2 && !taskHasAncestor(item,id,allProjectTasks));
-  $("taskParent").innerHTML = `<option value="">Project (top level)</option>${eligibleParents.map(item=>`<option value="${item.id}">${esc(item.name)}</option>`).join("")}`;
+  $("taskParent").innerHTML = `<option value="">Parent (top level)</option>${eligibleParents.map(item=>`<option value="${item.id}">${esc(item.name)}</option>`).join("")}`;
   $("taskParent").value = task?.parentId || parentId || "";
   $("taskModalLabel").textContent = task ? "TASK DETAILS" : "NEW TASK"; $("taskModalTitle").textContent = task ? "Edit task" : "Add a task"; $("deleteTask").hidden = !task; $("taskModal").hidden = false; setTimeout(() => $("taskNameInput").focus(), 30);
 }
@@ -464,7 +464,7 @@ function showSideTaskTooltip(button) {
   tip.style.left = `${left}px`; tip.style.top = `${top}px`;
 }
 function hideSideTaskTooltip() { const tip = $("cellTooltip"); tip.classList.remove("side-task-tooltip"); tip.hidden = true; }
-function askDelete(type, item) { state.pendingDelete = { type, item }; $("confirmTitle").textContent = `Delete ${type}?`; $("confirmText").textContent = type === "project" ? `“${item.name}” and all of its tasks will be permanently deleted.` : `“${item.name}” will be permanently deleted.`; $("confirm").hidden = false; }
+function askDelete(type, item) { state.pendingDelete = { type, item }; const label=type==="project"?"parent":"child";$("confirmTitle").textContent = `Delete ${label}?`; $("confirmText").textContent = type === "project" ? `“${item.name}” and all of its children will be permanently deleted.` : `“${item.name}” will be permanently deleted.`; $("confirm").hidden = false; }
 
 async function loadRemoteWorkspace() {
   setSyncStatus("Loading from Supabase…");

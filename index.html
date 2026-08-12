@@ -4,32 +4,32 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#173b2e">
-  <title>Northstar Project Manager</title>
+  <title>Northstar Parent Manager</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=1.7.28">
+  <link rel="stylesheet" href="styles.css?v=1.7.29">
 </head>
 <body>
   <div class="app">
     <aside class="sidebar" id="sidebar">
       <button class="brand brand-button" id="ganttHomeButton"><span>⌁</span>Gantt chart <small class="app-version">v1.7.4</small></button>
-      <div class="side-heading"><span>Projects</span><button id="sideAddProject" title="Add project">＋</button></div>
-      <nav id="projectList" class="project-list" aria-label="Projects"></nav>
-      <div class="side-empty" id="sideEmpty">No projects yet</div>
+      <div class="side-heading"><span>Parents</span><button id="sideAddProject" title="Add parent">＋</button></div>
+      <nav id="projectList" class="project-list" aria-label="Parents"></nav>
+      <div class="side-empty" id="sideEmpty">No parents yet</div>
       <div class="storage-note"><span class="storage-status">⌁ Saved on this device</span><span class="app-version">v1.7.4</span></div>
     </aside>
 
     <main>
       <header class="topbar">
         <button class="icon-button mobile-menu" id="menuButton" aria-label="Open menu" hidden>☰</button>
-        <label class="search">⌕<input id="searchInput" type="search" placeholder="Search tasks…" disabled><kbd>⌘ K</kbd></label>
+        <label class="search">⌕<input id="searchInput" type="search" placeholder="Search children…" disabled><kbd>⌘ K</kbd></label>
         <div class="account-controls"><span class="app-version top-version">v1.7.4</span><span id="syncStatus">Saved on this device</span><button class="secondary" id="connectButton">Connect</button><button class="secondary" id="signOutButton" hidden>Sign out</button></div>
       </header>
 
       <div class="content">
         <section class="gantt-home" id="welcome">
-          <div class="home-heading"><div class="home-toolbar-actions"><button class="primary chart-add-project" id="chartAddProject">＋ Project</button><div class="level-controls" aria-label="Visible hierarchy level"><button data-hierarchy-level="1">1st Level</button><button class="active" data-hierarchy-level="2">2nd Level</button><button data-hierarchy-level="3">3rd Level</button><button data-hierarchy-level="4">4th Level</button></div><button class="home-filter-button" id="homeFilterButton">≡ Filter <i id="homeFilterDot" hidden></i></button><div class="zoom"><button id="homeZoomOut">−</button><span id="homeZoomLabel">Week</span><button id="homeZoomIn">＋</button></div></div><p class="eyebrow">ALL PROJECTS</p><small id="homeSummary" hidden>No projects yet</small></div>
+          <div class="home-heading"><div class="home-toolbar-actions"><button class="primary chart-add-project" id="chartAddProject">＋ Parent</button><div class="level-controls" aria-label="Visible hierarchy level"><button data-hierarchy-level="1">1st Level</button><button class="active" data-hierarchy-level="2">2nd Level</button><button data-hierarchy-level="3">3rd Level</button><button data-hierarchy-level="4">4th Level</button></div><button class="home-filter-button" id="homeFilterButton">≡ Filter <i id="homeFilterDot" hidden></i></button><div class="zoom"><button id="homeZoomOut">−</button><span id="homeZoomLabel">Week</span><button id="homeZoomIn">＋</button></div></div><p class="eyebrow">ALL PARENTS</p><small id="homeSummary" hidden>No parents yet</small></div>
           <div class="filters home-filters" id="homeFilters" hidden><label>Status<select id="homeStatusFilter"><option value="all">All statuses</option><option>To do</option><option>In progress</option><option>Review</option><option>Done</option></select></label><label>Date<select id="homeDateFilter"><option value="all">All dates</option><option value="today">Current day</option><option value="today-plus-one">Current day + 1</option></select></label><button id="clearHomeFilter">Clear</button></div>
           <div class="timeline-pane"><div class="swipe-hint" aria-hidden="true">Swipe for dates <span>&rarr;</span></div><div class="gantt-wrap home-gantt" id="homeGantt"></div>
           <div class="legend home-legend"><span><i class="todo"></i>To do</span><span><i class="doing"></i>In progress</span><span><i class="review"></i>Review</span><span><i class="done"></i>Done</span></div></div>
@@ -37,8 +37,8 @@
 
         <section id="projectWorkspace" hidden>
           <div class="project-head">
-            <div class="project-title"><div class="project-inline-tools"><button id="filterButton">≡ Filter <i id="filterDot" hidden></i></button><div class="zoom"><button id="zoomOut">−</button><span id="zoomLabel">Week</span><button id="zoomIn">＋</button></div></div><div class="project-name-row"><h1 id="projectName"></h1><button class="project-add-task" id="projectAddTask" aria-label="Add task" title="Add task">＋</button></div></div>
-            <div class="head-actions"><button class="secondary" id="editProject">Edit project</button><button class="more-button" id="projectMenu">•••</button><div class="mini-menu" id="projectMenuPopup" hidden><button id="deleteProject">Delete project</button></div></div>
+            <div class="project-title"><div class="project-inline-tools"><button id="filterButton">≡ Filter <i id="filterDot" hidden></i></button><div class="zoom"><button id="zoomOut">−</button><span id="zoomLabel">Week</span><button id="zoomIn">＋</button></div></div><div class="project-name-row"><h1 id="projectName"></h1><button class="project-add-task" id="projectAddTask" aria-label="Add child" title="Add child">＋</button></div></div>
+            <div class="head-actions"><button class="secondary" id="editProject">Edit parent</button><button class="more-button" id="projectMenu">•••</button><div class="mini-menu" id="projectMenuPopup" hidden><button id="deleteProject">Delete parent</button></div></div>
           </div>
 
           <div class="filters" id="filters" hidden><label>Status<select id="statusFilter"><option value="all">All statuses</option><option>To do</option><option>In progress</option><option>Review</option><option>Done</option></select></label><button id="clearFilter">Clear</button></div>
@@ -51,26 +51,26 @@
 
   <div class="backdrop" id="projectModal" hidden>
     <form class="modal" id="projectForm">
-      <header><div><span class="eyebrow" id="projectModalLabel">NEW PROJECT</span><h2 id="projectModalTitle">Create a project</h2></div><button type="button" data-close>×</button></header>
+      <header><div><span class="eyebrow" id="projectModalLabel">NEW PARENT</span><h2 id="projectModalTitle">Create a parent</h2></div><button type="button" data-close>×</button></header>
       <input type="hidden" id="projectId">
-      <label>Project name<input id="projectNameInput" required maxlength="60" placeholder="e.g. Website redesign"></label>
+      <label>Parent name<input id="projectNameInput" required maxlength="60" placeholder="e.g. Website redesign"></label>
       <label hidden>Description<textarea id="projectDescriptionInput" rows="3" maxlength="180"></textarea></label>
       <div class="form-grid"><label>Start date<input id="projectStart" type="date"></label><label>End date<input id="projectEnd" type="date"></label></div>
       <label>Color<div class="colors" id="colorPicker"><button type="button" data-color="#dbe88f" class="selected"></button><button type="button" data-color="#ef9b82"></button><button type="button" data-color="#87a9d5"></button><button type="button" data-color="#c6a0d2"></button><button type="button" data-color="#75b39a"></button></div></label>
-      <footer><button type="button" class="secondary" data-close>Cancel</button><button class="primary" type="submit">Save project</button></footer>
+      <footer><button type="button" class="secondary" data-close>Cancel</button><button class="primary" type="submit">Save parent</button></footer>
     </form>
   </div>
 
   <div class="backdrop" id="taskModal" hidden>
     <form class="modal" id="taskForm">
-      <header><div><span class="eyebrow" id="taskModalLabel">NEW TASK</span><h2 id="taskModalTitle">Add a task</h2></div><button type="button" data-close>×</button></header>
+      <header><div><span class="eyebrow" id="taskModalLabel">NEW CHILD</span><h2 id="taskModalTitle">Add a child</h2></div><button type="button" data-close>×</button></header>
       <input type="hidden" id="taskId">
-      <label>Task name<input id="taskNameInput" required maxlength="80" placeholder="What needs to be done?"></label>
-      <label>Parent node<select id="taskParent"><option value="">Project (top level)</option></select></label>
+      <label>Child name<input id="taskNameInput" required maxlength="80" placeholder="What needs to be done?"></label>
+      <label>Parent node<select id="taskParent"><option value="">Parent (top level)</option></select></label>
       <div class="form-grid"><label>Status<select id="taskStatus"><option>To do</option><option>In progress</option><option>Review</option><option>Done</option></select></label><label>Owner<input id="taskOwner" maxlength="40" placeholder="Optional"></label></div>
       <div class="form-grid"><label>Start date<input id="taskStart" type="date"></label><label>End date<input id="taskEnd" type="date"></label></div>
       <label hidden>Notes<textarea id="taskNotes" rows="3" maxlength="300"></textarea></label>
-      <footer><button type="button" class="danger" id="deleteTask" hidden>Delete task</button><span></span><button type="button" class="secondary" data-close>Cancel</button><button class="primary" type="submit">Save task</button></footer>
+      <footer><button type="button" class="danger" id="deleteTask" hidden>Delete child</button><span></span><button type="button" class="secondary" data-close>Cancel</button><button class="primary" type="submit">Save child</button></footer>
     </form>
   </div>
 
@@ -92,6 +92,6 @@
   <div class="confirm" id="migrationModal" hidden><div><h3>Back up and migrate?</h3><p>Your existing projects are stored only in this browser. Northstar will first download a dated JSON backup, then copy the data to Supabase. Keep the downloaded file somewhere safe.</p><footer><button class="secondary" id="migrationLater">Not now</button><button class="primary" id="migrationStart">Back up &amp; migrate</button></footer></div></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="app.js?v=1.7.28"></script>
+  <script src="app.js?v=1.7.29"></script>
 </body>
 </html>
