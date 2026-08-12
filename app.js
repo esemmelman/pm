@@ -1,7 +1,7 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
 const URL_STORAGE_KEY = "northstar-node-urls-v1";
-const APP_VERSION = "1.7.45";
+const APP_VERSION = "1.7.46";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -494,6 +494,7 @@ function showChartTaskTooltip(element) {
   if(blockView){const distance=dayDiff(todayIso(),task.start),timing=distance===0?"Today":distance>0?`${distance} day${distance===1?"":"s"} from today`:`${Math.abs(distance)} day${Math.abs(distance)===1?"":"s"} ago`;tip.innerHTML=`<strong>${esc(task.name)}</strong><span>${timing}</span>`;}else tip.textContent = task.name;
   tip.classList.remove("side-task-tooltip");
   tip.classList.add("chart-task-tooltip");
+  tip.classList.toggle("block-tooltip",blockView);
   tip.hidden = false;
   const rect = element.getBoundingClientRect(), box = tip.getBoundingClientRect();
   let left = rect.right - box.width, top = rect.top + (rect.height - box.height) / 2;
@@ -501,7 +502,7 @@ function showChartTaskTooltip(element) {
   top = Math.max(8, Math.min(top, window.innerHeight - box.height - 8));
   tip.style.left = `${left}px`; tip.style.top = `${top}px`;
 }
-function hideChartTaskTooltip() { const tip = $("cellTooltip"); tip.classList.remove("chart-task-tooltip"); tip.hidden = true; }
+function hideChartTaskTooltip() { const tip = $("cellTooltip"); tip.classList.remove("chart-task-tooltip","block-tooltip"); tip.hidden = true; }
 function nodeContentTypes(projectId, taskId = "") {
   const parent = state.projects.find(item => item.id === projectId), item = taskId ? parent?.tasks.find(task => task.id === taskId) : parent;
   if (!item) return [];
@@ -530,7 +531,9 @@ function showNodeContentTooltip(element) {
 function hideNodeContentTooltip() { const tip = $("cellTooltip"); tip.classList.remove("node-content-tooltip"); tip.hidden = true; }
 function selectDesktopTimelineRow(label) {
   const grid=label.closest(".gantt-grid"),row=parseInt(label.style.gridRow,10);if(!grid||!Number.isFinite(row))return;
+  const deselect=label.classList.contains("timeline-row-selected");
   document.querySelectorAll(".timeline-row-selected").forEach(element=>element.classList.remove("timeline-row-selected"));
+  if(deselect)return;
   [...grid.children].filter(element=>parseInt(element.style.gridRow,10)===row).forEach(element=>element.classList.add("timeline-row-selected"));
 }
 function showSideTaskTooltip(button) {
