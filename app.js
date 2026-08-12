@@ -1,7 +1,7 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
 const URL_STORAGE_KEY = "northstar-node-urls-v1";
-const APP_VERSION = "1.7.58";
+const APP_VERSION = "1.7.59";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -662,7 +662,7 @@ function setup() {
   $("chartAddProject").onclick=()=>openProject();
   document.querySelectorAll("[data-hierarchy-level]").forEach(button=>button.onclick=()=>showHierarchyLevel(Number(button.dataset.hierarchyLevel)));
   $("blockViewToggle").onclick=()=>{state.blockView=!state.blockView;$("blockViewToggle").classList.toggle("active",state.blockView);$("blockViewToggle").setAttribute("aria-pressed",String(state.blockView));render();};
-  $("nextSevenToggle").onclick=()=>{state.nextSevenDays=!state.nextSevenDays;$("nextSevenToggle").classList.toggle("active",state.nextSevenDays);$("nextSevenToggle").setAttribute("aria-pressed",String(state.nextSevenDays));renderHomeGantt();};
+  $("nextSevenToggle").onclick=()=>{state.nextSevenDays=!state.nextSevenDays;if(state.nextSevenDays){state.visibleHierarchyLevel=4;state.homeCollapsedProjects.clear();state.collapsedTasks.clear();document.querySelectorAll("[data-hierarchy-level]").forEach(button=>button.classList.toggle("active",Number(button.dataset.hierarchyLevel)===4));}$("nextSevenToggle").classList.toggle("active",state.nextSevenDays);$("nextSevenToggle").setAttribute("aria-pressed",String(state.nextSevenDays));renderHomeGantt();};
   $("menuButton").onclick=()=>$("sidebar").classList.toggle("open");
   document.querySelectorAll(".mobile-view-switch").forEach(switcher => switcher.onclick = event => { const button = event.target.closest("[data-mobile-view]"); if (button) setMobileView(switcher.closest("section"), button.dataset.mobileView); });
   document.addEventListener("click", event => { if(!event.target.closest(".row-actions"))closeChartContextMenus();const label=event.target.closest(".gantt-grid .task-label");if(!isAndroid()&&label&&event.clientX-label.getBoundingClientRect().left<=12){event.preventDefault();event.stopPropagation();selectDesktopTimelineRow(label);return;}const cell = event.target.closest(".gantt-cell"); if (cell) createTaskFromCell(cell); });
