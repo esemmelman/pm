@@ -1,6 +1,6 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
-const APP_VERSION = "1.7.36";
+const APP_VERSION = "1.7.37";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -9,6 +9,7 @@ const state = { projects: [], activeProjectId: null, view: "gantt", zoom: 1, col
 const $ = id => document.getElementById(id);
 const esc = value => { const el = document.createElement("span"); el.textContent = value ?? ""; return el.innerHTML; };
 const plainText = value => { const el = document.createElement("div"); el.innerHTML = value || ""; return el.textContent || ""; };
+const isPastNode=item=>!!(item?.start&&item?.end&&item.start<todayIso()&&item.end<todayIso());
 const loadNodeLogs=()=>{try{return JSON.parse(localStorage.getItem(LOG_STORAGE_KEY)||"{}");}catch{return {};}};
 function addLogRow(entry={date:todayIso(),text:""}){const row=document.createElement("div");row.className="log-row";row.innerHTML=`<input type="date" value="${esc(entry.date||todayIso())}" aria-label="Log date"><textarea rows="2" aria-label="Log entry">${esc(entry.text||"")}</textarea><button type="button" class="log-remove" aria-label="Remove log entry">×</button>`;row.querySelector(".log-remove").onclick=()=>row.remove();$("logRows").append(row);}
 function openNodeLog(key,title){const logs=loadNodeLogs();$("logNodeKey").value=key;$("logTitle").textContent=title;$("logRows").innerHTML="";(logs[key]||[]).forEach(addLogRow);if(!$("logRows").children.length)addLogRow();$("logModal").hidden=false;}
@@ -322,6 +323,7 @@ function decorateChartRows() {
     const projectId = row.dataset.homeProject || row.dataset.homeParent || state.activeProjectId;
     const taskId = row.dataset.homeTask || row.dataset.task;
     if (!projectId || (!taskId && !row.dataset.homeProject)) return;
+    const datedNode=taskId?state.projects.find(item=>item.id===projectId)?.tasks.find(item=>item.id===taskId):state.projects.find(item=>item.id===projectId);row.classList.toggle("past-node",isPastNode(datedNode));
     const actions = document.createElement("span"); actions.className = "row-actions";
     const edit = row.querySelector(".row-edit");
     let scheduledItem;

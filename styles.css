@@ -311,4 +311,5 @@ button,input,select,textarea{font-size:16px}
 .level-controls #blockViewToggle.active{background:#173b2e;color:#fff}
 .level-controls #nextSevenToggle.active{background:#173b2e;color:#fff}
 .log-row input,.log-row textarea{height:38px!important;min-height:38px!important;max-height:38px;padding-block:8px;line-height:20px;resize:none!important;overflow-y:auto}
+.gantt-grid .task-label.past-node .row-title b,.gantt-grid .task-label.past-node .node-start-countdown{color:#9a9a9a!important}
 .log-modal{width:min(820px,calc(100vw - 30px))}.log-head,.log-row{display:grid;grid-template-columns:150px minmax(260px,1fr) 32px;gap:8px;align-items:start}.log-head{padding:0 4px 7px;font-size:13px}.log-rows{display:grid;gap:7px;max-height:55vh;overflow:auto}.log-row input,.log-row textarea{width:100%;min-height:38px;border:1px solid #aaa;border-radius:3px;padding:8px;font:15px Arial,Helvetica,sans-serif}.log-row textarea{resize:vertical}.log-remove{height:32px;border:0;background:transparent;color:#a13d32;font-size:20px;cursor:pointer}.log-add{margin-top:10px}@media(max-width:620px){.log-head,.log-row{grid-template-columns:110px minmax(170px,1fr) 30px}}
