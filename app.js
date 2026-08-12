@@ -1,7 +1,7 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
 const URL_STORAGE_KEY = "northstar-node-urls-v1";
-const APP_VERSION = "1.7.61";
+const APP_VERSION = "1.7.62";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -280,7 +280,7 @@ function renderHomeGantt() {
   $("homeGantt").innerHTML=html+`</div>`;
   clipTimelineBars($("homeGantt"));
   markTruncatedBars();
-  document.querySelectorAll("[data-home-toggle]").forEach(toggle=>toggle.onclick=()=>{const id=toggle.dataset.homeToggle;if(state.homeCollapsedProjects.has(id)){state.homeCollapsedProjects.delete(id);state.shallowExpandedProjects.add(id);const parent=state.projects.find(item=>item.id===id);parent?.tasks.filter(task=>parent.tasks.some(child=>child.parentId===task.id)).forEach(task=>state.collapsedTasks.add(task.id));}else{state.homeCollapsedProjects.add(id);state.shallowExpandedProjects.delete(id);}renderHomeGantt();});wireWritingRows();insertDesktopParentBlankRows($("homeGantt"));wireHomeDrag(width);expandTodayColumn($("homeGantt"));scrollTimelineToToday($("homeGantt"));
+  document.querySelectorAll("[data-home-toggle]").forEach(toggle=>toggle.onclick=()=>{const id=toggle.dataset.homeToggle;if(state.homeCollapsedProjects.has(id)){state.homeCollapsedProjects.delete(id);state.shallowExpandedProjects.add(id);const parent=state.projects.find(item=>item.id===id);parent?.tasks.filter(task=>parent.tasks.some(child=>child.parentId===task.id)).forEach(task=>state.collapsedTasks.add(task.id));}else{state.homeCollapsedProjects.add(id);state.shallowExpandedProjects.delete(id);}renderHomeGantt();});wireWritingRows();shadeDesktopParentGroups($("homeGantt").querySelector(".gantt-grid"));wireHomeDrag(width);expandTodayColumn($("homeGantt"));scrollTimelineToToday($("homeGantt"));
 }
 function renderAgenda(container, tasks, includeProject) {
   if (!container) return;
@@ -350,7 +350,7 @@ function renderGantt() {
     for (let i=0;i<days;i++) { const d=new Date(start); d.setDate(d.getDate()+i); html += `<div class="gantt-cell ${[0,6].includes(d.getDay()) ? "weekend" : ""}" style="grid-column:${i+2};grid-row:${row}"></div>`; }
     if(task.start&&task.end){const offset=dayDiff(toIso(start),task.start),duration=dayDiff(task.start,task.end)+1;html += `<button class="bar ${statusClass(task.status)}" data-bar="${task.id}" style="grid-column:${offset+2} / span ${duration};grid-row:${row}">${esc(task.name)}</button>`;}
   });
-  $("gantt").innerHTML = html + `</div>`; clipTimelineBars($("gantt")); wireTaskButtons(); insertDesktopParentBlankRows($("gantt")); wireDrag(width); markTruncatedBars(); expandTodayColumn($("gantt")); scrollTimelineToToday($("gantt"));
+  $("gantt").innerHTML = html + `</div>`; clipTimelineBars($("gantt")); wireTaskButtons(); shadeDesktopParentGroups($("gantt").querySelector(".gantt-grid")); wireDrag(width); markTruncatedBars(); expandTodayColumn($("gantt")); scrollTimelineToToday($("gantt"));
 }
 function wireEmptyButtons() { document.querySelectorAll(".empty-add").forEach(button => button.onclick = () => openTask()); }
 function wireTaskButtons() { wireWritingRows(); }
@@ -446,8 +446,9 @@ function insertDesktopParentBlankRows(wrap) {
   shadeDesktopParentGroups(grid);
 }
 function shadeDesktopParentGroups(grid) {
+  if(isAndroid()||!grid)return;
   const topParents=[...grid.querySelectorAll(".task-label")].filter(label=>{if(label.dataset.homeProject)return true;if(!label.dataset.task)return false;const task=project()?.tasks.find(item=>item.id===label.dataset.task);return task&&taskDepth(task,project()?.tasks||[])===0;}).sort((a,b)=>parseInt(a.style.gridRow,10)-parseInt(b.style.gridRow,10));
-  const starts=topParents.map(label=>parseInt(label.style.gridRow,10));[...grid.children].forEach(element=>{if(element.classList.contains("desktop-blank-label")||element.classList.contains("desktop-blank-cell"))return;const row=parseInt(element.style.gridRow,10);if(!Number.isFinite(row))return;let group=-1;for(let index=0;index<starts.length&&starts[index]<=row;index++)group=index;if(group>=0)element.classList.add(`desktop-group-${group%2===0?"a":"b"}`);});
+  const starts=topParents.map(label=>parseInt(label.style.gridRow,10));grid.querySelectorAll(".task-label").forEach(element=>{const row=parseInt(element.style.gridRow,10);if(!Number.isFinite(row))return;let group=-1;for(let index=0;index<starts.length&&starts[index]<=row;index++)group=index;if(group>=0)element.classList.add(`desktop-group-${group%2===0?"a":"b"}`);});
 }
 function openWriting(type, projectId, taskId = "") {
   const p = state.projects.find(item => item.id === projectId), task = p?.tasks.find(item => item.id === taskId), item = type === "task" ? task : p; if (!item) return;
