@@ -1,5 +1,6 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
-const APP_VERSION = "1.7.32";
+const LOG_STORAGE_KEY = "northstar-node-logs-v1";
+const APP_VERSION = "1.7.34";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -8,6 +9,9 @@ const state = { projects: [], activeProjectId: null, view: "gantt", zoom: 1, col
 const $ = id => document.getElementById(id);
 const esc = value => { const el = document.createElement("span"); el.textContent = value ?? ""; return el.innerHTML; };
 const plainText = value => { const el = document.createElement("div"); el.innerHTML = value || ""; return el.textContent || ""; };
+const loadNodeLogs=()=>{try{return JSON.parse(localStorage.getItem(LOG_STORAGE_KEY)||"{}");}catch{return {};}};
+function addLogRow(entry={date:todayIso(),text:""}){const row=document.createElement("div");row.className="log-row";row.innerHTML=`<input type="date" value="${esc(entry.date||todayIso())}" aria-label="Log date"><textarea rows="2" aria-label="Log entry">${esc(entry.text||"")}</textarea><button type="button" class="log-remove" aria-label="Remove log entry">×</button>`;row.querySelector(".log-remove").onclick=()=>row.remove();$("logRows").append(row);}
+function openNodeLog(key,title){const logs=loadNodeLogs();$("logNodeKey").value=key;$("logTitle").textContent=title;$("logRows").innerHTML="";(logs[key]||[]).forEach(addLogRow);if(!$("logRows").children.length)addLogRow();$("logModal").hidden=false;}
 function linkifyDocumentHtml(value) {
   const root = document.createElement("div");
   root.innerHTML = value || "";
@@ -208,7 +212,7 @@ function renderHomeGantt() {
   }
   const timelineTasks=tasks.filter(task=>task.start&&task.end),projectDates=state.projects.flatMap(p=>[p.start,p.end]).filter(Boolean);
   if(!timelineTasks.length&&!projectDates.length)projectDates.push(today,addDays(today,30));
-  const first=[...timelineTasks.map(t=>t.start),...projectDates,today].sort()[0],last=[...timelineTasks.map(t=>t.end),...projectDates,today].sort().at(-1),start=parseDate(addDays(first,-3)),end=parseDate(addDays(last,10)),days=dayDiff(toIso(start),toIso(end))+1,width=Math.round(25*state.zoom);
+  const first=state.nextSevenDays?today:[...timelineTasks.map(t=>t.start),...projectDates,today].sort()[0],last=state.nextSevenDays?sevenDays:[...timelineTasks.map(t=>t.end),...projectDates,today].sort().at(-1),start=parseDate(state.nextSevenDays?first:addDays(first,-3)),end=parseDate(state.nextSevenDays?last:addDays(last,10)),days=dayDiff(toIso(start),toIso(end))+1,width=Math.round(25*state.zoom);
   if (matchMedia("(max-width:620px)").matches) { renderMobileHomeMatrix(tasks, filtered, start, end); return; }
   let html=`<div class="gantt-grid home-grid ${state.blockView?"block-view":""}" data-chart-start="${toIso(start)}" style="--days:${days};--day-width:${width}px"><div class="gantt-corner" style="grid-column:1;grid-row:1 / span 2">PARENT / CHILD</div>`;
   let cursor=new Date(start);while(cursor<=end){const month=cursor.getMonth(),year=cursor.getFullYear(),offset=dayDiff(toIso(start),toIso(cursor));let span=0;while(cursor<=end&&cursor.getMonth()===month){span++;cursor.setDate(cursor.getDate()+1)}html+=`<div class="month" style="grid-column:${offset+2} / span ${span};grid-row:1">${new Intl.DateTimeFormat("en-US",{month:"long",year:"numeric"}).format(new Date(year,month,1))}</div>`}
@@ -216,7 +220,7 @@ function renderHomeGantt() {
   let row=3;[...state.projects].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"})).forEach(p=>{const projectTasks=hierarchicalTasks(tasks.filter(t=>t.projectId===p.id));if(filtered&&!projectTasks.length)return;const collapsed=state.homeCollapsedProjects.has(p.id);html+=`<div class="task-label home-project-row" data-home-project="${p.id}" style="grid-column:1;grid-row:${row}"><span class="home-chart-toggle ${collapsed?"collapsed":""}" data-home-toggle="${p.id}">⌄</span><button class="row-edit ${hasWriting(p.description)?"has-writing":""}" data-edit-project="${p.id}" aria-label="Edit ${esc(p.name)}" title="Edit project">✎</button><i style="background:${p.color}"></i><button class="row-title" data-write-project="${p.id}"><b>${esc(p.name)}</b></button></div>`;for(let i=0;i<days;i++){const d=new Date(start);d.setDate(d.getDate()+i);html+=`<div class="gantt-cell project-band ${[0,6].includes(d.getDay())?"weekend":""}" data-project-cell="${p.id}" style="grid-column:${i+2};grid-row:${row}"></div>`}if(p.start&&p.end){const projectOffset=dayDiff(toIso(start),p.start),projectDuration=dayDiff(p.start,p.end)+1;html+=`<button class="bar project-bar" data-project-bar="${p.id}" style="--project-color:${p.color};grid-column:${projectOffset+2} / span ${projectDuration};grid-row:${row}">${esc(p.name)}</button>`}row++;if(!collapsed)projectTasks.forEach(task=>{html+=`<div class="task-label home-task-row" data-home-task="${task.id}" data-home-parent="${p.id}" style="grid-column:1;grid-row:${row}"><button class="row-edit ${hasWriting(task.notes)?"has-writing":""}" data-edit-task="${task.id}" data-edit-parent="${p.id}" aria-label="Edit ${esc(task.name)}" title="Edit task">✎</button><button class="row-title" data-write-task="${task.id}" data-write-parent="${p.id}"><b>${esc(task.name)}</b></button></div>`;for(let i=0;i<days;i++){const d=new Date(start);d.setDate(d.getDate()+i);html+=`<div class="gantt-cell task-band ${[0,6].includes(d.getDay())?"weekend":""}" style="grid-column:${i+2};grid-row:${row}"></div>`}if(task.start&&task.end){const offset=dayDiff(toIso(start),task.start),duration=dayDiff(task.start,task.end)+1;html+=`<button class="bar ${statusClass(task.status)}" data-home-bar="${task.id}" data-home-parent="${p.id}" style="grid-column:${offset+2} / span ${duration};grid-row:${row}">${esc(task.name)}</button>`}row++})});
   $("homeGantt").innerHTML=html+`</div>`;
   markTruncatedBars();
-  document.querySelectorAll("[data-home-toggle]").forEach(toggle=>toggle.onclick=()=>{const id=toggle.dataset.homeToggle;if(state.homeCollapsedProjects.has(id)){state.homeCollapsedProjects.delete(id);const parent=state.projects.find(item=>item.id===id);parent?.tasks.filter(task=>!task.parentId&&parent.tasks.some(child=>child.parentId===task.id)).forEach(task=>state.collapsedTasks.add(task.id));}else state.homeCollapsedProjects.add(id);renderHomeGantt();});wireWritingRows();wireHomeDrag(width);expandTodayColumn($("homeGantt"));scrollTimelineToToday($("homeGantt"));
+  document.querySelectorAll("[data-home-toggle]").forEach(toggle=>toggle.onclick=()=>{const id=toggle.dataset.homeToggle;if(state.homeCollapsedProjects.has(id)){state.homeCollapsedProjects.delete(id);state.shallowExpandedProjects.add(id);const parent=state.projects.find(item=>item.id===id);parent?.tasks.filter(task=>parent.tasks.some(child=>child.parentId===task.id)).forEach(task=>state.collapsedTasks.add(task.id));}else{state.homeCollapsedProjects.add(id);state.shallowExpandedProjects.delete(id);}renderHomeGantt();});wireWritingRows();wireHomeDrag(width);expandTodayColumn($("homeGantt"));scrollTimelineToToday($("homeGantt"));
 }
 function renderAgenda(container, tasks, includeProject) {
   if (!container) return;
@@ -319,6 +323,7 @@ function decorateChartRows() {
       scheduledItem = state.projects.find(item=>item.id===projectId);
       row.classList.add("tree-level-1");
       actions.append(chartAction("Document", `document ${hasWriting(scheduledItem.description)?"has-content":""}`, "Open project document", { openDocument:"project", documentProject:projectId }));
+      actions.append(chartAction("Log", "log", "Open parent log", { openLog:`project:${projectId}`, logTitle:scheduledItem.name }));
       if (edit) actions.append(edit);
       actions.append(chartAction("Add child", "add", "Add child", { addRoot:projectId }));
       actions.append(chartAction("Delete", "delete", "Delete parent", { deleteProjectRow:projectId }));
@@ -329,6 +334,7 @@ function decorateChartRows() {
       row.classList.add(`tree-level-${depth+2}`);
       if(hasChildren){const toggle=chartAction(state.collapsedTasks.has(taskId)?"›":"⌄","node-toggle",state.collapsedTasks.has(taskId)?"Expand children":"Collapse children",{toggleTask:taskId,toggleHome:row.dataset.homeTask?"1":""});row.insertBefore(toggle,row.querySelector(".row-title"));}
       actions.append(chartAction("Document", `document ${hasWriting(task?.notes)?"has-content":""}`, "Open node document", { openDocument:"task", documentProject:projectId, documentTask:taskId }));
+      actions.append(chartAction("Log", "log", "Open child log", { openLog:`task:${projectId}:${taskId}`, logTitle:task.name }));
       if (edit) actions.append(edit);
       if (task && depth < 2) actions.append(chartAction("Add child", "add", "Add child", { addChild:taskId, addChildProject:projectId }));
       actions.append(chartAction("Delete", "delete", "Delete node", { deleteTaskRow:taskId, deleteParent:projectId }));
@@ -352,9 +358,10 @@ function wireWritingRows() {
   document.querySelectorAll("[data-add-root]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId=button.dataset.addRoot; persist(); render(); openTask(); });
   document.querySelectorAll("[data-add-child]").forEach(button => button.onclick = event => { event.stopPropagation(); if(button.dataset.addChildProject)state.activeProjectId=button.dataset.addChildProject; openTask(null, null, button.dataset.addChild); });
   document.querySelectorAll("[data-open-document]").forEach(button => button.onclick = event => { event.stopPropagation(); openWriting(button.dataset.openDocument, button.dataset.documentProject, button.dataset.documentTask || ""); });
+  document.querySelectorAll("[data-open-log]").forEach(button=>button.onclick=event=>{event.stopPropagation();closeChartContextMenus();openNodeLog(button.dataset.openLog,button.dataset.logTitle);});
   document.querySelectorAll("[data-delete-project-row]").forEach(button => button.onclick = event => { event.stopPropagation(); const item=state.projects.find(p=>p.id===button.dataset.deleteProjectRow); if(item)askDelete("project",item); });
   document.querySelectorAll("[data-delete-task-row]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId=button.dataset.deleteParent; const item=project()?.tasks.find(t=>t.id===button.dataset.deleteTaskRow); if(item)askDelete("task",item); });
-  document.querySelectorAll("[data-toggle-task]").forEach(button=>button.onclick=event=>{event.stopPropagation();const id=button.dataset.toggleTask;state.visibleHierarchyLevel=0;state.collapsedTasks.has(id)?state.collapsedTasks.delete(id):state.collapsedTasks.add(id);button.dataset.toggleHome?renderHomeGantt():renderGantt();});
+  document.querySelectorAll("[data-toggle-task]").forEach(button=>button.onclick=event=>{event.stopPropagation();const id=button.dataset.toggleTask,projectId=button.closest("[data-home-parent]")?.dataset.homeParent||state.activeProjectId,parent=state.projects.find(item=>item.id===projectId);state.visibleHierarchyLevel=0;state.shallowExpandedProjects.delete(projectId);if(state.collapsedTasks.has(id)){state.collapsedTasks.delete(id);parent?.tasks.filter(task=>task.parentId===id&&parent.tasks.some(child=>child.parentId===task.id)).forEach(task=>state.collapsedTasks.add(task.id));}else state.collapsedTasks.add(id);button.dataset.toggleHome?renderHomeGantt():renderGantt();});
   document.querySelectorAll("[data-home-toggle]").forEach(button=>button.addEventListener("click",()=>{const id=button.dataset.homeToggle;if(state.homeCollapsedProjects.has(id))state.shallowExpandedProjects.add(id);state.visibleHierarchyLevel=0;document.querySelectorAll("[data-hierarchy-level]").forEach(control=>control.classList.remove("active"));},true));
 }
 function openWriting(type, projectId, taskId = "") {
@@ -516,6 +523,8 @@ function setup() {
   document.querySelectorAll(".backdrop").forEach(modal => modal.onclick = e => { if (e.target === modal) closeModals(); });
   document.querySelectorAll("[data-color]").forEach(button => button.onclick = () => { state.color = button.dataset.color; document.querySelectorAll("[data-color]").forEach(b => b.classList.toggle("selected", b === button)); });
   document.querySelectorAll("[data-format]").forEach(button => button.onclick = () => { $("writingEditor").focus(); document.execCommand(button.dataset.format, false); });
+  $("logAddRow").onclick=()=>addLogRow();
+  $("logForm").onsubmit=event=>{event.preventDefault();const logs=loadNodeLogs(),key=$("logNodeKey").value;logs[key]=[...$("logRows").querySelectorAll(".log-row")].map(row=>({date:row.querySelector("input").value,text:row.querySelector("textarea").value.trim()})).filter(entry=>entry.date||entry.text);localStorage.setItem(LOG_STORAGE_KEY,JSON.stringify(logs));closeModals();toast("Log saved");};
   $("writingEditor").addEventListener("click", event => {
     const link = event.target.closest("a[href]");
     if (!link) return;
