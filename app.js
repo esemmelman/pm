@@ -1,7 +1,7 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
 const URL_STORAGE_KEY = "northstar-node-urls-v1";
-const APP_VERSION = "1.7.43";
+const APP_VERSION = "1.7.45";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -480,15 +480,18 @@ function showCellTooltip(cell) {
 function hideCellTooltip() { $("cellTooltip").hidden = true; }
 function showChartTaskTooltip(element) {
   const textElement = element.matches(".task-label") ? element.querySelector("b") : element;
-  if (!textElement || textElement.scrollWidth <= textElement.clientWidth + 1) return;
-  const task = element.matches("[data-bar],[data-home-bar]")
-    ? taskForBar(element)
+  const blockView = !!element.closest(".gantt-grid.block-view");
+  if (!textElement || (!blockView && textElement.scrollWidth <= textElement.clientWidth + 1)) return;
+  const task = element.dataset.projectBar
+    ? state.projects.find(item => item.id === element.dataset.projectBar)
+    : element.matches("[data-bar],[data-home-bar]")
+      ? taskForBar(element)
     : element.dataset.task
       ? project()?.tasks.find(item => item.id === element.dataset.task)
       : state.projects.find(item => item.id === element.dataset.homeParent)?.tasks.find(item => item.id === element.dataset.homeTask);
   if (!task) return;
   const tip = $("cellTooltip");
-  tip.textContent = task.name;
+  if(blockView){const distance=dayDiff(todayIso(),task.start),timing=distance===0?"Today":distance>0?`${distance} day${distance===1?"":"s"} from today`:`${Math.abs(distance)} day${Math.abs(distance)===1?"":"s"} ago`;tip.innerHTML=`<strong>${esc(task.name)}</strong><span>${timing}</span>`;}else tip.textContent = task.name;
   tip.classList.remove("side-task-tooltip");
   tip.classList.add("chart-task-tooltip");
   tip.hidden = false;
@@ -525,6 +528,11 @@ function showNodeContentTooltip(element) {
   tip.style.left = `${left}px`; tip.style.top = `${top}px`;
 }
 function hideNodeContentTooltip() { const tip = $("cellTooltip"); tip.classList.remove("node-content-tooltip"); tip.hidden = true; }
+function selectDesktopTimelineRow(label) {
+  const grid=label.closest(".gantt-grid"),row=parseInt(label.style.gridRow,10);if(!grid||!Number.isFinite(row))return;
+  document.querySelectorAll(".timeline-row-selected").forEach(element=>element.classList.remove("timeline-row-selected"));
+  [...grid.children].filter(element=>parseInt(element.style.gridRow,10)===row).forEach(element=>element.classList.add("timeline-row-selected"));
+}
 function showSideTaskTooltip(button) {
   const tip = $("cellTooltip"), name = button.textContent.trim();
   tip.textContent = name; tip.classList.add("side-task-tooltip"); tip.hidden = false;
@@ -612,7 +620,7 @@ function setup() {
   $("nextSevenToggle").onclick=()=>{state.nextSevenDays=!state.nextSevenDays;$("nextSevenToggle").classList.toggle("active",state.nextSevenDays);$("nextSevenToggle").setAttribute("aria-pressed",String(state.nextSevenDays));renderHomeGantt();};
   $("menuButton").onclick=()=>$("sidebar").classList.toggle("open");
   document.querySelectorAll(".mobile-view-switch").forEach(switcher => switcher.onclick = event => { const button = event.target.closest("[data-mobile-view]"); if (button) setMobileView(switcher.closest("section"), button.dataset.mobileView); });
-  document.addEventListener("click", event => { if(!event.target.closest(".row-actions"))closeChartContextMenus();const cell = event.target.closest(".gantt-cell"); if (cell) createTaskFromCell(cell); });
+  document.addEventListener("click", event => { if(!event.target.closest(".row-actions"))closeChartContextMenus();const label=event.target.closest(".gantt-grid .task-label");if(!isAndroid()&&label&&event.clientX-label.getBoundingClientRect().left<=12){event.preventDefault();event.stopPropagation();selectDesktopTimelineRow(label);return;}const cell = event.target.closest(".gantt-cell"); if (cell) createTaskFromCell(cell); });
   document.addEventListener("dragover", event => {
     const cell = event.target.closest(".gantt-cell");
     if (!cell || !event.dataTransfer.types.includes("application/x-northstar-task")) return;
@@ -637,8 +645,8 @@ function setup() {
     document.querySelector(".drag-date-preview")?.remove();
     resetToHomeView();persist();render();toast(`${task.name} scheduled for ${formatDate(droppedDate)}`);
   });
-  document.addEventListener("mouseover", event => { const chartTask=event.target.closest(".bar[data-bar],.bar[data-home-bar]");if(chartTask&&!chartTask.contains(event.relatedTarget)){showChartTaskTooltip(chartTask);return;}const node=event.target.closest(".task-label,.side-task");if(node&&!node.contains(event.relatedTarget)){showNodeContentTooltip(node);return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))showCellTooltip(cell); });
-  document.addEventListener("mouseout", event => { const chartTask=event.target.closest(".bar[data-bar],.bar[data-home-bar]");if(chartTask&&!chartTask.contains(event.relatedTarget)){hideChartTaskTooltip();return;}const node=event.target.closest(".task-label,.side-task");if(node&&!node.contains(event.relatedTarget)){hideNodeContentTooltip();return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))hideCellTooltip(); });
+  document.addEventListener("mouseover", event => { const chartTask=event.target.closest(".bar");if(chartTask&&!chartTask.contains(event.relatedTarget)){showChartTaskTooltip(chartTask);return;}const node=event.target.closest(".task-label,.side-task");if(node&&!node.contains(event.relatedTarget)){showNodeContentTooltip(node);return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))showCellTooltip(cell); });
+  document.addEventListener("mouseout", event => { const chartTask=event.target.closest(".bar");if(chartTask&&!chartTask.contains(event.relatedTarget)){hideChartTaskTooltip();return;}const node=event.target.closest(".task-label,.side-task");if(node&&!node.contains(event.relatedTarget)){hideNodeContentTooltip();return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))hideCellTooltip(); });
   document.addEventListener("mousedown", hideSideTaskTooltip);
   document.onkeydown=event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();$("searchInput").focus();}if(event.key==="Escape"){closeChartContextMenus();closeModals();$("confirm").hidden=true;}};
   render();
