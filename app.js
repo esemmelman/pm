@@ -1,7 +1,7 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
 const URL_STORAGE_KEY = "northstar-node-urls-v1";
-const APP_VERSION = "1.7.53";
+const APP_VERSION = "1.7.54";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -61,6 +61,16 @@ const taskTooltip = task => { if (!task.start) return `${task.name}\nNot schedul
 const compareTaskSchedule = (a, b) => { if (!a.start && !b.start) return (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name); if (!a.start) return 1; if (!b.start) return -1; return a.start.localeCompare(b.start) || a.name.localeCompare(b.name); };
 const project = () => state.projects.find(item => item.id === state.activeProjectId);
 const PARENT_META = /<!--northstar-parent:([^>]*)-->/g;
+const URL_META = /<!--northstar-urls:([^>]*)-->/g;
+function decodeSyncedUrls(value,key) {
+  const source=value||"",match=[...source.matchAll(URL_META)][0];
+  if(match?.[1]){try{const remote=JSON.parse(decodeURIComponent(match[1]));if(Array.isArray(remote)){const urls=loadNodeUrls();urls[key]=remote;localStorage.setItem(URL_STORAGE_KEY,JSON.stringify(urls));}}catch{}}
+  return source.replace(URL_META,"").trim();
+}
+function encodeSyncedUrls(value,key) {
+  const clean=(value||"").replace(URL_META,"").trim(),urls=loadNodeUrls()[key]||[],marker=urls.length?`<!--northstar-urls:${encodeURIComponent(JSON.stringify(urls))}-->`:"";
+  return `${clean}${marker}`;
+}
 function decodeTaskHierarchy(task, fallbackParentId = null) {
   const notes = task.notes || "", match = [...notes.matchAll(PARENT_META)][0]; let encodedParent = null;
   if (match?.[1]) { try { encodedParent = decodeURIComponent(match[1]); } catch { encodedParent = match[1]; } }
@@ -77,7 +87,7 @@ function load() {
   state.collapsedProjects = new Set(state.projects.map(p => p.id));
   applyOpeningExpansion();
 }
-function workspacePayload() { return { projects: state.projects.map(p=>({...p,tasks:p.tasks.map(encodeTaskHierarchy)})), activeProjectId: state.activeProjectId }; }
+function workspacePayload() { return { projects: state.projects.map(p=>({...p,description:encodeSyncedUrls(p.description,`project:${p.id}`),tasks:p.tasks.map(task=>{const encoded=encodeTaskHierarchy(task);return {...encoded,notes:encodeSyncedUrls(encoded.notes,`task:${p.id}:${task.id}`)};})})), activeProjectId: state.activeProjectId }; }
 function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify(workspacePayload())); scheduleRemoteSync(); }
 function setSyncStatus(message) { const el = $("syncStatus"); if (el) el.textContent = message; const note = document.querySelector(".storage-note"), status = note?.querySelector(".storage-status"); if (status) status.textContent = message; if (note) note.classList.toggle("synced", message === "Synced with Supabase"); }
 function scheduleRemoteSync() { if (!currentUser || !remoteReady) return; setSyncStatus("Saving…"); clearTimeout(syncTimer); syncTimer = setTimeout(syncRemote, 350); }
@@ -582,8 +592,8 @@ async function loadRemoteWorkspace() {
   if (error) { setSyncStatus("Supabase setup needed"); console.error(error); toast("Run supabase-schema.sql first"); return; }
   if (projectsResult.data.length) {
     const localParents=new Map(state.projects.flatMap(p=>p.tasks.filter(t=>t.parentId).map(t=>[t.id,t.parentId]))); let recoveredLocalHierarchy=false;
-    state.projects = projectsResult.data.map(p => ({ id:p.id, name:p.name, description:p.description, color:p.color, start:p.start_date || "", end:p.end_date || "", tasks:tasksResult.data.filter(t => t.project_id === p.id).map(t => {const raw={id:t.id,name:t.name,status:t.status,owner:t.owner,start:t.start_date||"",end:t.end_date||"",notes:t.notes,parentId:t.parent_id||null,sortOrder:t.sort_order}, decoded=decodeTaskHierarchy(raw,localParents.get(t.id));if(!raw.parentId&&!raw.notes?.match(PARENT_META)&&localParents.has(t.id))recoveredLocalHierarchy=true;return decoded;}) }));
-    state.activeProjectId = null; applyOpeningExpansion(); localStorage.setItem(STORAGE_KEY, JSON.stringify(workspacePayload())); remoteReady = true; setSyncStatus("Synced with Supabase"); render(); if(recoveredLocalHierarchy)scheduleRemoteSync();
+    state.projects = projectsResult.data.map(p => ({ id:p.id, name:p.name, description:decodeSyncedUrls(p.description,`project:${p.id}`), color:p.color, start:p.start_date || "", end:p.end_date || "", tasks:tasksResult.data.filter(t => t.project_id === p.id).map(t => {const raw={id:t.id,name:t.name,status:t.status,owner:t.owner,start:t.start_date||"",end:t.end_date||"",notes:decodeSyncedUrls(t.notes,`task:${p.id}:${t.id}`),parentId:t.parent_id||null,sortOrder:t.sort_order}, decoded=decodeTaskHierarchy(raw,localParents.get(t.id));if(!raw.parentId&&!raw.notes?.match(PARENT_META)&&localParents.has(t.id))recoveredLocalHierarchy=true;return decoded;}) }));
+    state.activeProjectId = null; applyOpeningExpansion(); localStorage.setItem(STORAGE_KEY, JSON.stringify(workspacePayload())); remoteReady = true; setSyncStatus("Synced with Supabase"); render(); if(recoveredLocalHierarchy||Object.values(loadNodeUrls()).some(entries=>entries?.length))scheduleRemoteSync();
   } else if (state.projects.length) {
     setSyncStatus("Local data awaiting backup"); $("migrationModal").hidden = false;
   } else { remoteReady = true; setSyncStatus("Synced with Supabase"); }
@@ -624,7 +634,7 @@ function setup() {
   $("logAddRow").onclick=()=>addLogRow();
   $("logForm").onsubmit=event=>{event.preventDefault();const logs=loadNodeLogs(),key=$("logNodeKey").value;logs[key]=[...$("logRows").querySelectorAll(".log-row")].map(row=>({date:row.querySelector("input").value,text:row.querySelector("textarea").value.trim()})).filter(entry=>entry.date||entry.text);localStorage.setItem(LOG_STORAGE_KEY,JSON.stringify(logs));closeModals();toast("Log saved");};
   $("urlAddRow").onclick=()=>addUrlRow();
-  $("urlForm").onsubmit=event=>{event.preventDefault();const urls=loadNodeUrls(),key=$("urlNodeKey").value,entries=[];for(const row of $("urlRows").querySelectorAll(".url-row")){const label=row.querySelector('input[type="text"]').value.trim(),raw=row.querySelector('input[type="url"]').value.trim();if(!raw)continue;let parsed;try{parsed=new URL(normalizeNodeUrl(raw));}catch{toast("Enter a valid URL");row.querySelector('input[type="url"]').focus();return;}if(!['http:','https:'].includes(parsed.protocol)){toast("Only http and https URLs are supported");row.querySelector('input[type="url"]').focus();return;}entries.push({label:label||parsed.hostname||parsed.href,url:parsed.href});}urls[key]=entries;localStorage.setItem(URL_STORAGE_KEY,JSON.stringify(urls));closeModals();render();toast("URLs saved");};
+  $("urlForm").onsubmit=event=>{event.preventDefault();const urls=loadNodeUrls(),key=$("urlNodeKey").value,entries=[];for(const row of $("urlRows").querySelectorAll(".url-row")){const label=row.querySelector('input[type="text"]').value.trim(),raw=row.querySelector('input[type="url"]').value.trim();if(!raw)continue;let parsed;try{parsed=new URL(normalizeNodeUrl(raw));}catch{toast("Enter a valid URL");row.querySelector('input[type="url"]').focus();return;}if(!['http:','https:'].includes(parsed.protocol)){toast("Only http and https URLs are supported");row.querySelector('input[type="url"]').focus();return;}entries.push({label:label||parsed.hostname||parsed.href,url:parsed.href});}urls[key]=entries;localStorage.setItem(URL_STORAGE_KEY,JSON.stringify(urls));persist();closeModals();render();toast("URLs saved");};
   $("writingEditor").addEventListener("click", event => {
     const link = event.target.closest("a[href]");
     if (!link) return;
