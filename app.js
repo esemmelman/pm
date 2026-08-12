@@ -1,7 +1,7 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
 const URL_STORAGE_KEY = "northstar-node-urls-v1";
-const APP_VERSION = "1.7.52";
+const APP_VERSION = "1.7.53";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -208,20 +208,40 @@ function androidNodeActions(projectId, task = null) {
   const key=task?`task:${projectId}:${task.id}`:`project:${projectId}`,item=task||state.projects.find(project=>project.id===projectId),type=task?"task":"project",doc=hasWriting(task?task.notes:item?.description),urls=(loadNodeUrls()[key]||[]).length,logs=(loadNodeLogs()[key]||[]).some(entry=>String(entry.text||"").trim());
   return `<div class="android-node-options"><button data-open-document="${type}" data-document-project="${projectId}" ${task?`data-document-task="${task.id}"`:""}>Doc${doc?" •":""}</button><button data-open-urls="${key}" data-url-title="${esc(item?.name||"")}">URLs${urls?` (${urls})`:""}</button><button data-open-log="${key}" data-log-title="${esc(item?.name||"")}">Log${logs?" •":""}</button><button data-edit-${type}="${task?task.id:projectId}" ${task?`data-edit-parent="${projectId}"`:""}>Edit</button><button data-${task?"add-child":"add-root"}="${task?task.id:projectId}" ${task?`data-add-child-project="${projectId}"`:""}>＋ Child</button><button class="delete" data-delete-${type}-row="${task?task.id:projectId}" ${task?`data-delete-parent="${projectId}"`:""}>Delete</button></div>`;
 }
+function androidSortedTasks(tasks) {
+  const result=[],sorted=[...tasks].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"})),visit=task=>{result.push(task);sorted.filter(child=>child.parentId===task.id).forEach(visit);};
+  sorted.filter(task=>!task.parentId||!tasks.some(item=>item.id===task.parentId)).forEach(visit);return result;
+}
+function openAndroidNodeMenu(event,row) {
+  const projectId=row.dataset.androidProject,taskId=row.dataset.androidTask||"",parent=state.projects.find(item=>item.id===projectId),task=parent?.tasks.find(item=>item.id===taskId),item=task||parent;if(!item)return;
+  const menu=document.createElement("span");menu.className="row-actions";
+  const add=(label,className,callback)=>{const button=chartAction(label,className,label);button.onclick=click=>{click.stopPropagation();closeChartContextMenus();callback();};menu.append(button);};
+  add("Document","document",()=>openWriting(task?"task":"project",projectId,taskId));
+  add("URLs","url",()=>openNodeUrls(task?`task:${projectId}:${taskId}`:`project:${projectId}`,item.name));
+  add("Log","log",()=>openNodeLog(task?`task:${projectId}:${taskId}`:`project:${projectId}`,item.name));
+  add("Edit","edit",()=>{if(task){state.activeProjectId=projectId;persist();render();openTask(taskId);}else openProject(projectId);});
+  add("Add child","add",()=>{state.activeProjectId=projectId;if(task)openTask(null,null,taskId);else{persist();render();openTask();}});
+  add("Delete","delete",()=>{if(task){state.activeProjectId=projectId;askDelete("task",task);}else askDelete("project",parent);});
+  openChartContextMenu({preventDefault(){},stopPropagation(){},currentTarget:row,clientX:event.clientX,clientY:event.clientY},menu);
+}
+function wireAndroidLongPress(container) {
+  container.querySelectorAll(".android-tree-row").forEach(row=>{let timer,startX,startY;const cancel=()=>{clearTimeout(timer);timer=null;};row.onpointerdown=event=>{if(event.target.closest(".android-chevron"))return;startX=event.clientX;startY=event.clientY;timer=setTimeout(()=>{timer=null;navigator.vibrate?.(30);openAndroidNodeMenu(event,row);},550);};row.onpointermove=event=>{if(Math.abs(event.clientX-startX)>8||Math.abs(event.clientY-startY)>8)cancel();};row.onpointerup=cancel;row.onpointercancel=cancel;row.oncontextmenu=event=>{event.preventDefault();openAndroidNodeMenu(event,row);};});
+}
 function renderAndroidTree(container, projects, tasks, includeProjects=true) {
   const level=Math.max(1,Math.min(4,state.visibleHierarchyLevel||2)), taskIds=new Set(tasks.map(task=>task.id));
   let html=`<div class="android-tree"><div class="android-level-controls" aria-label="Visible hierarchy level">${[1,2,3,4].map(value=>`<button class="${level===value?"active":""}" data-android-level="${value}">${value}${value===1?"st":value===2?"nd":value===3?"rd":"th"} Level</button>`).join("")}</div>`;
-  projects.forEach(parent=>{
+  [...projects].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"})).forEach(parent=>{
     const projectTasks=parent.tasks.filter(task=>taskIds.has(task.id));
     const projectHasChildren=projectTasks.length>0;
     const projectCollapsed=includeProjects&&state.homeCollapsedProjects.has(parent.id);
-    if(includeProjects)html+=`<div class="android-tree-row parent" style="--android-depth:0">${projectHasChildren?`<button class="android-chevron ${projectCollapsed?"collapsed":""}" data-android-project-toggle="${parent.id}" aria-label="${projectCollapsed?"Expand":"Collapse"} ${esc(parent.name)}"></button>`:'<span class="android-chevron empty"></span>'}<b>${esc(parent.name)}</b>${parent.start?`<small>${dayDiff(todayIso(),parent.start)}</small>`:""}</div>`;
-    if(!projectCollapsed)hierarchicalTasks(projectTasks,false).filter(task=>{let current=task;while(current?.parentId){if(state.collapsedTasks.has(current.parentId))return false;current=parent.tasks.find(item=>item.id===current.parentId);}return true;}).forEach(task=>{const depth=taskDepth(task,parent.tasks),hasChildren=parent.tasks.some(child=>child.parentId===task.id),collapsed=state.collapsedTasks.has(task.id),distance=task.start?dayDiff(todayIso(),task.start):"";html+=`<div class="android-tree-row ${hasChildren?"parent":""} ${isPastNode(task)?"past":""}" style="--android-depth:${depth+(includeProjects?1:0)}">${hasChildren?`<button class="android-chevron ${collapsed?"collapsed":""}" data-android-task-toggle="${task.id}" aria-label="${collapsed?"Expand":"Collapse"} ${esc(task.name)}"></button>`:'<span class="android-chevron empty"></span>'}<b>${esc(task.name)}</b>${distance!==""?`<small>${distance}</small>`:""}</div>`;});
+    if(includeProjects)html+=`<div class="android-tree-row parent" data-android-project="${parent.id}" style="--android-depth:0">${projectHasChildren?`<button class="android-chevron ${projectCollapsed?"collapsed":""}" data-android-project-toggle="${parent.id}" aria-label="${projectCollapsed?"Expand":"Collapse"} ${esc(parent.name)}"></button>`:'<span class="android-chevron empty"></span>'}<b>${esc(parent.name)}</b>${parent.start?`<small>${dayDiff(todayIso(),parent.start)}</small>`:""}</div>`;
+    if(!projectCollapsed)androidSortedTasks(projectTasks).filter(task=>{let current=task;while(current?.parentId){if(state.collapsedTasks.has(current.parentId))return false;current=parent.tasks.find(item=>item.id===current.parentId);}return true;}).forEach(task=>{const depth=taskDepth(task,parent.tasks),hasChildren=parent.tasks.some(child=>child.parentId===task.id),collapsed=state.collapsedTasks.has(task.id),distance=task.start?dayDiff(todayIso(),task.start):"";html+=`<div class="android-tree-row ${hasChildren?"parent":""} ${isPastNode(task)?"past":""}" data-android-project="${parent.id}" data-android-task="${task.id}" style="--android-depth:${depth+(includeProjects?1:0)}">${hasChildren?`<button class="android-chevron ${collapsed?"collapsed":""}" data-android-task-toggle="${task.id}" aria-label="${collapsed?"Expand":"Collapse"} ${esc(task.name)}"></button>`:'<span class="android-chevron empty"></span>'}<b>${esc(task.name)}</b>${distance!==""?`<small>${distance}</small>`:""}</div>`;});
   });
   container.innerHTML=html+`</div>`;
   container.querySelectorAll("[data-android-level]").forEach(button=>button.onclick=()=>{const selected=Number(button.dataset.androidLevel);state.visibleHierarchyLevel=selected;state.homeCollapsedProjects=includeProjects&&selected===1?new Set(projects.map(parent=>parent.id)):new Set();state.collapsedTasks=new Set(projects.flatMap(parent=>parent.tasks.filter(task=>parent.tasks.some(child=>child.parentId===task.id)&&taskDepth(task,parent.tasks)+(includeProjects?2:1)===selected).map(task=>task.id)));document.querySelectorAll("[data-hierarchy-level]").forEach(control=>control.classList.toggle("active",Number(control.dataset.hierarchyLevel)===selected));render();});
   container.querySelectorAll("[data-android-project-toggle]").forEach(button=>button.onclick=()=>{const id=button.dataset.androidProjectToggle;state.homeCollapsedProjects.has(id)?state.homeCollapsedProjects.delete(id):state.homeCollapsedProjects.add(id);render();});
   container.querySelectorAll("[data-android-task-toggle]").forEach(button=>button.onclick=()=>{const id=button.dataset.androidTaskToggle;state.collapsedTasks.has(id)?state.collapsedTasks.delete(id):state.collapsedTasks.add(id);render();});
+  wireAndroidLongPress(container);
   wireWritingRows();
 }
 function renderHomeGantt() {
