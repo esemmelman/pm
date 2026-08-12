@@ -331,6 +331,7 @@ function decorateChartRows() {
       scheduledItem = state.projects.find(item=>item.id===projectId);
       row.classList.add("tree-level-1");
       actions.append(chartAction("Document", `document ${hasWriting(scheduledItem.description)?"has-content":""}`, "Open project document", { openDocument:"project", documentProject:projectId }));
+      actions.append(chartAction("Add URL", "url", "Add URL link", { addUrl:"project", urlProject:projectId }));
       actions.append(chartAction("Log", "log", "Open parent log", { openLog:`project:${projectId}`, logTitle:scheduledItem.name }));
       if (edit) actions.append(edit);
       actions.append(chartAction("Add child", "add", "Add child", { addRoot:projectId }));
@@ -342,6 +343,7 @@ function decorateChartRows() {
       row.classList.add(`tree-level-${depth+2}`);
       if(hasChildren){const toggle=chartAction(state.collapsedTasks.has(taskId)?"›":"⌄","node-toggle",state.collapsedTasks.has(taskId)?"Expand children":"Collapse children",{toggleTask:taskId,toggleHome:row.dataset.homeTask?"1":""});row.insertBefore(toggle,row.querySelector(".row-title"));}
       actions.append(chartAction("Document", `document ${hasWriting(task?.notes)?"has-content":""}`, "Open node document", { openDocument:"task", documentProject:projectId, documentTask:taskId }));
+      actions.append(chartAction("Add URL", "url", "Add URL link", { addUrl:"task", urlProject:projectId, urlTask:taskId }));
       actions.append(chartAction("Log", "log", "Open child log", { openLog:`task:${projectId}:${taskId}`, logTitle:task.name }));
       if (edit) actions.append(edit);
       if (task && depth < 2) actions.append(chartAction("Add child", "add", "Add child", { addChild:taskId, addChildProject:projectId }));
@@ -366,6 +368,7 @@ function wireWritingRows() {
   document.querySelectorAll("[data-add-root]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId=button.dataset.addRoot; persist(); render(); openTask(); });
   document.querySelectorAll("[data-add-child]").forEach(button => button.onclick = event => { event.stopPropagation(); if(button.dataset.addChildProject)state.activeProjectId=button.dataset.addChildProject; openTask(null, null, button.dataset.addChild); });
   document.querySelectorAll("[data-open-document]").forEach(button => button.onclick = event => { event.stopPropagation(); openWriting(button.dataset.openDocument, button.dataset.documentProject, button.dataset.documentTask || ""); });
+  document.querySelectorAll("[data-add-url]").forEach(button => button.onclick = event => { event.stopPropagation(); addNodeUrl(button.dataset.addUrl, button.dataset.urlProject, button.dataset.urlTask || ""); });
   document.querySelectorAll("[data-open-log]").forEach(button=>button.onclick=event=>{event.stopPropagation();closeChartContextMenus();openNodeLog(button.dataset.openLog,button.dataset.logTitle);});
   document.querySelectorAll("[data-delete-project-row]").forEach(button => button.onclick = event => { event.stopPropagation(); const item=state.projects.find(p=>p.id===button.dataset.deleteProjectRow); if(item)askDelete("project",item); });
   document.querySelectorAll("[data-delete-task-row]").forEach(button => button.onclick = event => { event.stopPropagation(); state.activeProjectId=button.dataset.deleteParent; const item=project()?.tasks.find(t=>t.id===button.dataset.deleteTaskRow); if(item)askDelete("task",item); });
@@ -375,6 +378,25 @@ function wireWritingRows() {
 function openWriting(type, projectId, taskId = "") {
   const p = state.projects.find(item => item.id === projectId), task = p?.tasks.find(item => item.id === taskId), item = type === "task" ? task : p; if (!item) return;
   $("writingType").value = type; $("writingProjectId").value = projectId; $("writingTaskId").value = taskId; $("writingLabel").textContent = type === "task" ? "TASK NOTES" : "PROJECT NOTES"; $("writingTitle").textContent = item.name; $("writingEditor").innerHTML = linkifyDocumentHtml(type === "task" ? (task.notes || "") : (p.description || "")); $("writingModal").hidden = false; setTimeout(() => $("writingEditor").focus(), 30);
+}
+function addNodeUrl(type, projectId, taskId = "") {
+  closeChartContextMenus();
+  const parent = state.projects.find(item => item.id === projectId), task = parent?.tasks.find(item => item.id === taskId), item = type === "task" ? task : parent;
+  if (!item) return;
+  const entered = window.prompt(`Add a URL to ${item.name}:`, "https://");
+  if (entered === null) return;
+  let href = entered.trim();
+  if (!href) return;
+  if (!/^[a-z][a-z\d+.-]*:/i.test(href)) href = `https://${href}`;
+  let parsed;
+  try { parsed = new URL(href); } catch { toast("Enter a valid URL"); return; }
+  if (!['http:', 'https:'].includes(parsed.protocol)) { toast("Only http and https URLs are supported"); return; }
+  const label = window.prompt("Link text:", parsed.hostname || href);
+  if (label === null) return;
+  const current = type === "task" ? (task.notes || "") : (parent.description || ""), spacer = hasWriting(current) ? "<p><br></p>" : "";
+  const link = `<p><a href="${esc(parsed.href)}" target="_blank" rel="noopener noreferrer">${esc(label.trim() || parsed.hostname || parsed.href)}</a></p>`;
+  if (type === "task") task.notes = `${current}${spacer}${link}`; else parent.description = `${current}${spacer}${link}`;
+  persist(); render(); toast("URL added");
 }
 function updateMobileDrag(bar, item, shift) {
   if (!matchMedia("(max-width:620px)").matches || !item) return;
@@ -491,8 +513,8 @@ function showNodeContentTooltip(element) {
   tip.classList.add("node-content-tooltip");
   tip.hidden = false;
   const rect = element.getBoundingClientRect(), box = tip.getBoundingClientRect();
-  let left = rect.right + 8, top = rect.top + (rect.height - box.height) / 2;
-  if (left + box.width > window.innerWidth - 8) left = Math.max(8, rect.left - box.width - 8);
+  const inset = 7;
+  let left = Math.max(rect.left + inset, rect.right - box.width - inset), top = rect.top + (rect.height - box.height) / 2;
   top = Math.max(8, Math.min(top, window.innerHeight - box.height - 8));
   tip.style.left = `${left}px`; tip.style.top = `${top}px`;
 }
