@@ -1,6 +1,6 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
-const APP_VERSION = "1.7.34";
+const APP_VERSION = "1.7.35";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -219,6 +219,7 @@ function renderHomeGantt() {
   for(let i=0;i<days;i++){const d=new Date(start);d.setDate(d.getDate()+i);html+=`<div class="day ${[0,6].includes(d.getDay())?"weekend":""} ${toIso(d)===today?"today":""}" style="grid-column:${i+2};grid-row:2">${d.getDate()}<small>${toIso(d)===today?"TODAY":["S","M","T","W","T","F","S"][d.getDay()]}</small></div>`}
   let row=3;[...state.projects].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"})).forEach(p=>{const projectTasks=hierarchicalTasks(tasks.filter(t=>t.projectId===p.id));if(filtered&&!projectTasks.length)return;const collapsed=state.homeCollapsedProjects.has(p.id);html+=`<div class="task-label home-project-row" data-home-project="${p.id}" style="grid-column:1;grid-row:${row}"><span class="home-chart-toggle ${collapsed?"collapsed":""}" data-home-toggle="${p.id}">⌄</span><button class="row-edit ${hasWriting(p.description)?"has-writing":""}" data-edit-project="${p.id}" aria-label="Edit ${esc(p.name)}" title="Edit project">✎</button><i style="background:${p.color}"></i><button class="row-title" data-write-project="${p.id}"><b>${esc(p.name)}</b></button></div>`;for(let i=0;i<days;i++){const d=new Date(start);d.setDate(d.getDate()+i);html+=`<div class="gantt-cell project-band ${[0,6].includes(d.getDay())?"weekend":""}" data-project-cell="${p.id}" style="grid-column:${i+2};grid-row:${row}"></div>`}if(p.start&&p.end){const projectOffset=dayDiff(toIso(start),p.start),projectDuration=dayDiff(p.start,p.end)+1;html+=`<button class="bar project-bar" data-project-bar="${p.id}" style="--project-color:${p.color};grid-column:${projectOffset+2} / span ${projectDuration};grid-row:${row}">${esc(p.name)}</button>`}row++;if(!collapsed)projectTasks.forEach(task=>{html+=`<div class="task-label home-task-row" data-home-task="${task.id}" data-home-parent="${p.id}" style="grid-column:1;grid-row:${row}"><button class="row-edit ${hasWriting(task.notes)?"has-writing":""}" data-edit-task="${task.id}" data-edit-parent="${p.id}" aria-label="Edit ${esc(task.name)}" title="Edit task">✎</button><button class="row-title" data-write-task="${task.id}" data-write-parent="${p.id}"><b>${esc(task.name)}</b></button></div>`;for(let i=0;i<days;i++){const d=new Date(start);d.setDate(d.getDate()+i);html+=`<div class="gantt-cell task-band ${[0,6].includes(d.getDay())?"weekend":""}" style="grid-column:${i+2};grid-row:${row}"></div>`}if(task.start&&task.end){const offset=dayDiff(toIso(start),task.start),duration=dayDiff(task.start,task.end)+1;html+=`<button class="bar ${statusClass(task.status)}" data-home-bar="${task.id}" data-home-parent="${p.id}" style="grid-column:${offset+2} / span ${duration};grid-row:${row}">${esc(task.name)}</button>`}row++})});
   $("homeGantt").innerHTML=html+`</div>`;
+  clipTimelineBars($("homeGantt"));
   markTruncatedBars();
   document.querySelectorAll("[data-home-toggle]").forEach(toggle=>toggle.onclick=()=>{const id=toggle.dataset.homeToggle;if(state.homeCollapsedProjects.has(id)){state.homeCollapsedProjects.delete(id);state.shallowExpandedProjects.add(id);const parent=state.projects.find(item=>item.id===id);parent?.tasks.filter(task=>parent.tasks.some(child=>child.parentId===task.id)).forEach(task=>state.collapsedTasks.add(task.id));}else{state.homeCollapsedProjects.add(id);state.shallowExpandedProjects.delete(id);}renderHomeGantt();});wireWritingRows();wireHomeDrag(width);expandTodayColumn($("homeGantt"));scrollTimelineToToday($("homeGantt"));
 }
@@ -258,6 +259,11 @@ function expandTodayColumn(wrap) {
     grid.querySelectorAll(".gantt-cell").forEach(cell=>cell.classList.toggle("today-column",parseInt(cell.style.gridColumn,10)===column));
   });
 }
+function clipTimelineBars(wrap) {
+  const grid=wrap?.querySelector(".gantt-grid");if(!grid)return;
+  const lastColumn=Number(getComputedStyle(grid).getPropertyValue("--days"))+1;
+  grid.querySelectorAll(".bar").forEach(bar=>{const match=bar.style.gridColumn.match(/^(-?\d+)\s*\/\s*span\s*(\d+)/);if(!match)return;const start=Number(match[1]),span=Number(match[2]),end=start+span-1;if(end<2||start>lastColumn){bar.hidden=true;return;}const clippedStart=Math.max(2,start),clippedEnd=Math.min(lastColumn,end);bar.style.gridColumn=`${clippedStart} / span ${clippedEnd-clippedStart+1}`;});
+}
 function setMobileView(section, view) {
   section.classList.toggle("show-mobile-timeline", view === "timeline");
   section.querySelectorAll("[data-mobile-view]").forEach(button => { const active = button.dataset.mobileView === view; button.classList.toggle("active", active); button.setAttribute("aria-pressed", active); });
@@ -284,7 +290,7 @@ function renderGantt() {
     for (let i=0;i<days;i++) { const d=new Date(start); d.setDate(d.getDate()+i); html += `<div class="gantt-cell ${[0,6].includes(d.getDay()) ? "weekend" : ""}" style="grid-column:${i+2};grid-row:${row}"></div>`; }
     if(task.start&&task.end){const offset=dayDiff(toIso(start),task.start),duration=dayDiff(task.start,task.end)+1;html += `<button class="bar ${statusClass(task.status)}" data-bar="${task.id}" style="grid-column:${offset+2} / span ${duration};grid-row:${row}">${esc(task.name)}</button>`;}
   });
-  $("gantt").innerHTML = html + `</div>`; wireTaskButtons(); wireDrag(width); markTruncatedBars(); expandTodayColumn($("gantt")); scrollTimelineToToday($("gantt"));
+  $("gantt").innerHTML = html + `</div>`; clipTimelineBars($("gantt")); wireTaskButtons(); wireDrag(width); markTruncatedBars(); expandTodayColumn($("gantt")); scrollTimelineToToday($("gantt"));
 }
 function wireEmptyButtons() { document.querySelectorAll(".empty-add").forEach(button => button.onclick = () => openTask()); }
 function wireTaskButtons() { wireWritingRows(); }
