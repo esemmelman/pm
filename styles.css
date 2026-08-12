@@ -92,6 +92,7 @@
 .brand-button .app-version{margin-left:auto;color:#b6c9bf;font:600 11px "DM Sans",sans-serif}
 .cell-tooltip.side-task-tooltip{max-width:360px;padding:8px 11px;color:#fff;background:#173b2e;border-color:#315f49;font:600 13px "DM Sans",sans-serif;white-space:normal}
 .cell-tooltip.chart-task-tooltip{max-width:min(360px,calc(100vw - 16px));padding:8px 11px;color:#fff;background:#173b2e;border-color:#315f49;font:600 13px/1.35 "DM Sans",sans-serif;white-space:normal}
+.cell-tooltip.node-content-tooltip{padding:7px 10px;color:#fff;background:#173b2e;border-color:#315f49;font:700 12px "DM Sans",sans-serif;white-space:nowrap}
 @media(max-width:620px){.mobile-matrix{grid-template-rows:64px}}
 @media(max-width:620px){
 .timeline-pane{display:block}.swipe-hint{display:flex;justify-content:flex-end;align-items:center;gap:5px;height:24px;color:#778179;font-size:10px}

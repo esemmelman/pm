@@ -1,6 +1,6 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
-const APP_VERSION = "1.7.37";
+const APP_VERSION = "1.7.38";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -471,6 +471,32 @@ function showChartTaskTooltip(element) {
   tip.style.left = `${left}px`; tip.style.top = `${top}px`;
 }
 function hideChartTaskTooltip() { const tip = $("cellTooltip"); tip.classList.remove("chart-task-tooltip"); tip.hidden = true; }
+function nodeContentTypes(projectId, taskId = "") {
+  const parent = state.projects.find(item => item.id === projectId), item = taskId ? parent?.tasks.find(task => task.id === taskId) : parent;
+  if (!item) return [];
+  const logKey = taskId ? `task:${projectId}:${taskId}` : `project:${projectId}`;
+  const types = [];
+  if (hasWriting(taskId ? item.notes : item.description)) types.push("Doc");
+  if ((loadNodeLogs()[logKey] || []).some(entry => String(entry.text || "").trim())) types.push("Log");
+  return types;
+}
+function showNodeContentTooltip(element) {
+  const projectId = element.dataset.homeProject || element.dataset.homeParent || element.dataset.parentProject || state.activeProjectId;
+  const taskId = element.dataset.homeTask || element.dataset.task || element.dataset.sideTask || "";
+  const types = nodeContentTypes(projectId, taskId);
+  if (!types.length) return;
+  const tip = $("cellTooltip");
+  tip.textContent = types.join(" · ");
+  tip.classList.remove("side-task-tooltip", "chart-task-tooltip");
+  tip.classList.add("node-content-tooltip");
+  tip.hidden = false;
+  const rect = element.getBoundingClientRect(), box = tip.getBoundingClientRect();
+  let left = rect.right + 8, top = rect.top + (rect.height - box.height) / 2;
+  if (left + box.width > window.innerWidth - 8) left = Math.max(8, rect.left - box.width - 8);
+  top = Math.max(8, Math.min(top, window.innerHeight - box.height - 8));
+  tip.style.left = `${left}px`; tip.style.top = `${top}px`;
+}
+function hideNodeContentTooltip() { const tip = $("cellTooltip"); tip.classList.remove("node-content-tooltip"); tip.hidden = true; }
 function showSideTaskTooltip(button) {
   const tip = $("cellTooltip"), name = button.textContent.trim();
   tip.textContent = name; tip.classList.add("side-task-tooltip"); tip.hidden = false;
@@ -580,8 +606,8 @@ function setup() {
     document.querySelector(".drag-date-preview")?.remove();
     resetToHomeView();persist();render();toast(`${task.name} scheduled for ${formatDate(droppedDate)}`);
   });
-  document.addEventListener("mouseover", event => { const chartTask=event.target.closest(".bar[data-bar],.bar[data-home-bar]");if(chartTask&&!chartTask.contains(event.relatedTarget)){showChartTaskTooltip(chartTask);return;}const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){showSideTaskTooltip(sideTask);return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))showCellTooltip(cell); });
-  document.addEventListener("mouseout", event => { const chartTask=event.target.closest(".bar[data-bar],.bar[data-home-bar]");if(chartTask&&!chartTask.contains(event.relatedTarget)){hideChartTaskTooltip();return;}const sideTask=event.target.closest(".side-task");if(sideTask&&!sideTask.contains(event.relatedTarget)){hideSideTaskTooltip();return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))hideCellTooltip(); });
+  document.addEventListener("mouseover", event => { const chartTask=event.target.closest(".bar[data-bar],.bar[data-home-bar]");if(chartTask&&!chartTask.contains(event.relatedTarget)){showChartTaskTooltip(chartTask);return;}const node=event.target.closest(".task-label,.side-task");if(node&&!node.contains(event.relatedTarget)){showNodeContentTooltip(node);return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))showCellTooltip(cell); });
+  document.addEventListener("mouseout", event => { const chartTask=event.target.closest(".bar[data-bar],.bar[data-home-bar]");if(chartTask&&!chartTask.contains(event.relatedTarget)){hideChartTaskTooltip();return;}const node=event.target.closest(".task-label,.side-task");if(node&&!node.contains(event.relatedTarget)){hideNodeContentTooltip();return;}const cell=event.target.closest(".gantt-cell");if(cell&&!cell.contains(event.relatedTarget))hideCellTooltip(); });
   document.addEventListener("mousedown", hideSideTaskTooltip);
   document.onkeydown=event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();$("searchInput").focus();}if(event.key==="Escape"){closeChartContextMenus();closeModals();$("confirm").hidden=true;}};
   render();
