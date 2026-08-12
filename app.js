@@ -1,7 +1,7 @@
 const STORAGE_KEY = "northstar-project-manager-v2";
 const LOG_STORAGE_KEY = "northstar-node-logs-v1";
 const URL_STORAGE_KEY = "northstar-node-urls-v1";
-const APP_VERSION = "1.7.42";
+const APP_VERSION = "1.7.43";
 const supabaseSettings = window.NORTHSTAR_SUPABASE || {};
 const supabaseClient = window.supabase?.createClient(supabaseSettings.url, supabaseSettings.publishableKey) || null;
 let currentUser = null, remoteReady = false, syncTimer = null, authMode = "signin";
@@ -50,6 +50,7 @@ function linkifyDocumentHtml(value) {
   return root.innerHTML;
 }
 const hasWriting = value => plainText(value).trim().length > 0;
+const isAndroid = () => /Android/i.test(navigator.userAgent);
 const parseDate = value => new Date(`${value}T12:00:00`);
 const toIso = value => value.toISOString().slice(0, 10);
 const addDays = (value, amount) => { const d = parseDate(value); d.setDate(d.getDate() + amount); return toIso(d); };
@@ -203,6 +204,22 @@ function scrollMobileTaskDateToThirdRow(taskId) {
   const headerHeight = grid.querySelector(".matrix-column-head")?.offsetHeight || 78, rowHeight = grid.querySelector(".matrix-date")?.offsetHeight || 38;
   wrap.scrollTo({ top:Math.max(0, target.offsetTop - headerHeight - rowHeight * 2), behavior:"smooth" });
 }
+function androidNodeActions(projectId, task = null) {
+  const key=task?`task:${projectId}:${task.id}`:`project:${projectId}`,item=task||state.projects.find(project=>project.id===projectId),type=task?"task":"project",doc=hasWriting(task?task.notes:item?.description),urls=(loadNodeUrls()[key]||[]).length,logs=(loadNodeLogs()[key]||[]).some(entry=>String(entry.text||"").trim());
+  return `<div class="android-node-options"><button data-open-document="${type}" data-document-project="${projectId}" ${task?`data-document-task="${task.id}"`:""}>Doc${doc?" •":""}</button><button data-open-urls="${key}" data-url-title="${esc(item?.name||"")}">URLs${urls?` (${urls})`:""}</button><button data-open-log="${key}" data-log-title="${esc(item?.name||"")}">Log${logs?" •":""}</button><button data-edit-${type}="${task?task.id:projectId}" ${task?`data-edit-parent="${projectId}"`:""}>Edit</button><button data-${task?"add-child":"add-root"}="${task?task.id:projectId}" ${task?`data-add-child-project="${projectId}"`:""}>＋ Child</button><button class="delete" data-delete-${type}-row="${task?task.id:projectId}" ${task?`data-delete-parent="${projectId}"`:""}>Delete</button></div>`;
+}
+function renderAndroidTree(container, projects, tasks, includeProjects=true) {
+  const level=Math.max(1,Math.min(4,state.visibleHierarchyLevel||2)), taskIds=new Set(tasks.map(task=>task.id));
+  let html=`<div class="android-tree"><div class="android-level-controls" aria-label="Visible hierarchy level">${[1,2,3,4].map(value=>`<button class="${level===value?"active":""}" data-android-level="${value}">${value}${value===1?"st":value===2?"nd":value===3?"rd":"th"} Level</button>`).join("")}</div>`;
+  projects.forEach(parent=>{
+    const projectTasks=parent.tasks.filter(task=>taskIds.has(task.id));
+    if(includeProjects)html+=`<section class="android-node android-level-1"><div class="android-node-main"><i style="background:${parent.color}"></i><div><b>${esc(parent.name)}</b><small>Parent${parent.start?` · ${formatDate(parent.start)}`:""}</small></div></div>${androidNodeActions(parent.id)}</section>`;
+    if(level>(includeProjects?1:0))hierarchicalTasks(projectTasks,false).filter(task=>taskDepth(task,parent.tasks)+(includeProjects?2:1)<=level).forEach(task=>{const depth=taskDepth(task,parent.tasks);html+=`<section class="android-node android-level-${depth+(includeProjects?2:1)}" style="--android-depth:${depth+(includeProjects?1:0)}"><div class="android-node-main"><span class="task-status-dot ${statusClass(task.status)}"></span><div><b>${esc(task.name)}</b><small>${esc(task.status)}${task.owner?` · ${esc(task.owner)}`:""}${task.start?` · ${formatDate(task.start)}`:""}</small></div></div>${androidNodeActions(parent.id,task)}</section>`;});
+  });
+  container.innerHTML=html+`</div>`;
+  container.querySelectorAll("[data-android-level]").forEach(button=>button.onclick=()=>{state.visibleHierarchyLevel=Number(button.dataset.androidLevel);document.querySelectorAll("[data-hierarchy-level]").forEach(control=>control.classList.toggle("active",Number(control.dataset.hierarchyLevel)===state.visibleHierarchyLevel));render();});
+  wireWritingRows();
+}
 function renderHomeGantt() {
   document.querySelectorAll("[data-hierarchy-level]").forEach(button=>button.classList.toggle("active",Number(button.dataset.hierarchyLevel)===state.visibleHierarchyLevel));
   const all = allTasks(), statusFilter = $("homeStatusFilter").value, dateFilter = $("homeDateFilter").value, query = $("searchInput").value.trim().toLowerCase(), today = todayIso(), tomorrow = addDays(today, 1), sevenDays=addDays(today,7);
@@ -212,6 +229,7 @@ function renderHomeGantt() {
   const filtered = statusFilter !== "all" || dateFilter !== "all" || !!query || state.nextSevenDays; $("homeFilterDot").hidden = statusFilter === "all" && dateFilter === "all" && !state.nextSevenDays;
   const matchingProjects = new Set(tasks.map(task => task.projectId)).size;
   $("homeSummary").textContent = state.projects.length ? `${matchingProjects} parent${matchingProjects === 1 ? "" : "s"} · ${tasks.length} ${filtered ? "matching " : ""}${tasks.length === 1 ? "child" : "children"}` : "No parents yet";
+  if(isAndroid()&&state.projects.length){const visibleProjects=filtered?state.projects.filter(parent=>tasks.some(task=>task.projectId===parent.id)):state.projects;renderAndroidTree($("homeGantt"),visibleProjects,tasks,true);return;}
   if (!tasks.length && (!state.projects.length || filtered)) {
     $("homeGantt").innerHTML = filtered ? `<div class="empty-panel"><div>≡</div><h3>No matching tasks</h3><p>No tasks and projects match the selected filters.</p><button class="secondary home-clear-action">Clear filters</button></div>` : `<div class="empty-panel"><div>⌁</div><h3>${state.projects.length ? "No tasks on the timeline" : "Your Gantt chart is ready"}</h3><p>${state.projects.length ? "Open a project and add its first task." : "Create a project to begin building your master timeline."}</p><button class="primary home-empty-action">${state.projects.length ? "Open a project" : "＋ Create project"}</button></div>`;
     const clear = document.querySelector(".home-clear-action"); if (clear) clear.onclick = clearHomeFilters; else document.querySelector(".home-empty-action").onclick = () => state.projects.length ? openProjectView(state.projects[0].id) : openProject(); return;
@@ -278,6 +296,7 @@ function setMobileView(section, view) {
 function emptyPanel(title, copy) { return `<div class="empty-panel"><div>⌁</div><h3>${title}</h3><p>${copy}</p><button class="primary empty-add">＋ Add first child</button></div>`; }
 function renderGantt() {
   const tasks = hierarchicalTasks(taskItems()), scheduledTasks=tasks.filter(task=>task.start&&task.end);
+  if(isAndroid()){renderAndroidTree($("gantt"),[project()],tasks,false);return;}
   if (!project().tasks.length) { $("gantt").innerHTML = emptyPanel("Your timeline is ready", "Add a child with start and end dates to build your Gantt chart."); wireEmptyButtons(); return; }
   if (!tasks.length) { $("gantt").innerHTML = `<div class="empty-panel"><h3>No matching children</h3><p>Try changing your search or filter.</p></div>`; return; }
   const today = todayIso(), minTask = scheduledTasks.map(t => t.start).sort()[0]||today, maxTask = scheduledTasks.map(t => t.end).sort().at(-1)||addDays(today,30);
@@ -555,6 +574,7 @@ function setupSupabase() {
 
 function setup() {
   load();
+  document.body.classList.toggle("android-tree-mode",isAndroid());
   document.querySelectorAll(".app-version").forEach(element => element.textContent = `v${APP_VERSION}`);
   setupSupabase();
   $("sideAddProject").onclick = () => openProject();
